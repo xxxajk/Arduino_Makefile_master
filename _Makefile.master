@@ -4,7 +4,11 @@
 # This work is based on the following original.
 # it includes many fixes and enhancements.
 # Origin URL https://github.com/xxxajk/Arduino_Makefile_master
-# 
+#
+# Installation note.
+# Place this file in Arduino/Arduino_Makefile_master/
+# Even better:
+#        just 'git pull' from your Arduino directory (where your sketches are) 
 #
 # Copyright 2011 Alan Burlison, alan@bleaklow.com.  All rights reserved.
 # Use is subject to license terms.
@@ -40,7 +44,7 @@
 # PORT = /dev/term/0
 # INC_DIRS = ../common
 # LIB_DIRS = ../libraries/Task ../../libraries/VirtualWire
-# include ../../Makefile.master
+# include ../Arduino_Makefile_master/Makefile.master
 # ----------
 #
 # Where:
