@@ -71,6 +71,12 @@
 ARD_REV ?= 105
 ARD_HOME ?= /opt/Arduino
 
+ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avr/bin/avrdude),)
+    ARD_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
+    AVRDUDE ?= $(ARD_BIN)/avrdude
+    AVRDUDE_CONF ?= $(ARD_HOME)/hardware/tools/avr/etc/avrdude.conf
+endif
+
 ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avrdude),)
     ARD_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
     AVRDUDE ?= $(ARD_HOME)/hardware/tools/avrdude
