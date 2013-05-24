@@ -297,6 +297,7 @@ $(IMAGE).hex : $(ARD_AR_OBJ) $(LIB_AR_OBJ) $(SKT_AR_OBJ) $(SKT_PDE_OBJ)
 	$(OBJCOPY) -O ihex -R .eeprom $(IMAGE).elf $(IMAGE).hex
 	$(OBJDUMP) -h -S $(IMAGE).elf | $(CXXFILT) -t > $(IMAGE).lst
 	$(SIZE) $(IMAGE).elf
+	$(SIZE) -C --mcu=$(MCU) $(IMAGE).elf
 
 upload : all
 	$(kill-monitor)
