@@ -259,9 +259,9 @@ clean :
 $(BUILD_DIR) :
 	$(MKDIR) $@
 
-#	echo '#include <WProgram.h>' > $(BUILD_DIR)/$(SKETCH)_ino.cpp
 $(SKT_PDE_OBJ) : $(SKT_PDE_SRC)
-	cat $(SKT_PDE_SRC) > $(BUILD_DIR)/$(SKETCH)_ino.cpp
+	echo '#include <Arduino.h>' > $(BUILD_DIR)/$(SKETCH)_ino.cpp
+	cat $(SKT_PDE_SRC) >> $(BUILD_DIR)/$(SKETCH)_ino.cpp
 	cd $(BUILD_DIR) && $(CXX) -c $(subst build/,,$(CXX_FLAGS)) \
 	    $(OPT_FLAGS) $(ARD_FLAGS) -I.. \
 	    $(patsubst -I..%,-I../..%,$(INC_FLAGS)) \
