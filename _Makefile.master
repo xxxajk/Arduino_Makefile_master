@@ -42,16 +42,18 @@
 # ----------
 # BOARD = mega
 # PORT = /dev/term/0
+# THIRD_PARTY_HARDWARE = ../hardware/Sanguino
 # INC_DIRS = ../common
 # LIB_DIRS = ../libraries/Task ../../libraries/VirtualWire
 # include ../Arduino_Makefile_master/Makefile.master
 # ----------
 #
 # Where:
-#   BOARD    : Arduino board type, from $(ARD_HOME)/hardware/boards.txt
-#   PORT     : USB port
-#   INC_DIRS : List pf directories containing header files
-#   LIB_DIRS : List of directories containing library source
+#	BOARD					: Arduino board type, from boards.txt
+#	PORT					: USB port
+#	THIRD_PARTY_HARDWARE	: Path to third party hardware folder
+#	INC_DIRS				: List pf directories containing header files
+#	LIB_DIRS				: List of directories containing library source
 #
 # Before using this Makefile you can adjust the following macros to suit
 # your environment, either by editing this file directly or by defining them in
@@ -70,6 +72,12 @@
 # Global configuration.
 ARD_REV ?= 105
 ARD_HOME ?= /opt/Arduino
+
+ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avr/bin/avrdude),)
+    ARD_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
+    AVRDUDE ?= $(ARD_BIN)/avrdude
+    AVRDUDE_CONF ?= $(ARD_HOME)/hardware/tools/avr/etc/avrdude.conf
+endif
 
 ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avrdude),)
     ARD_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
@@ -103,18 +111,27 @@ ifndef PORT
 endif
 
 # Version-specific settings
+ifdef THIRD_PARTY_HARDWARE
+    ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
+    CORE = $(shell sed -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    ARD_SRC_DIR = $(THIRD_PARTY_HARDWARE)/cores/$(CORE)
+    ARD_MAIN = $(ARD_SRC_DIR)/main.cpp
+    LIB_DIRS += $(THIRD_PARTY_HARDWARE)/variants/$(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+else
+
 ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/arduino/boards.txt
     ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/cores/arduino
     ARD_MAIN = $(ARD_SRC_DIR)/main.cpp
     LIB_DIRS += $(ARD_HOME)/hardware/arduino/variants/$(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-
 endif
 
 ifneq ($(wildcard $(ARD_HOME)/hardware/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/boards.txt
     ARD_SRC_DIR = $(ARD_HOME)/hardware/cores/arduino
     ARD_MAIN = $(ARD_SRC_DIR)/main.cxx
+endif
+
 endif
 
 ifndef ARD_BOARDS
@@ -259,9 +276,9 @@ clean :
 $(BUILD_DIR) :
 	$(MKDIR) $@
 
-#	echo '#include <WProgram.h>' > $(BUILD_DIR)/$(SKETCH)_ino.cpp
 $(SKT_PDE_OBJ) : $(SKT_PDE_SRC)
-	cat $(SKT_PDE_SRC) > $(BUILD_DIR)/$(SKETCH)_ino.cpp
+	echo '#include <Arduino.h>' > $(BUILD_DIR)/$(SKETCH)_ino.cpp
+	cat $(SKT_PDE_SRC) >> $(BUILD_DIR)/$(SKETCH)_ino.cpp
 	cd $(BUILD_DIR) && $(CXX) -c $(subst build/,,$(CXX_FLAGS)) \
 	    $(OPT_FLAGS) $(ARD_FLAGS) -I.. \
 	    $(patsubst -I..%,-I../..%,$(INC_FLAGS)) \
@@ -297,6 +314,7 @@ $(IMAGE).hex : $(ARD_AR_OBJ) $(LIB_AR_OBJ) $(SKT_AR_OBJ) $(SKT_PDE_OBJ)
 	$(OBJCOPY) -O ihex -R .eeprom $(IMAGE).elf $(IMAGE).hex
 	$(OBJDUMP) -h -S $(IMAGE).elf | $(CXXFILT) -t > $(IMAGE).lst
 	$(SIZE) $(IMAGE).elf
+	$(SIZE) -C --mcu=$(MCU) $(IMAGE).elf
 
 upload : all
 	$(kill-monitor)
