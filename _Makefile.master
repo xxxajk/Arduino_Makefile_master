@@ -50,6 +50,7 @@
 #
 # Where:
 #	BOARD					: Arduino board type, from boards.txt
+#	BOARD_SUB				: If the board is part a sub menu introduced in Arduino 1.5.x, then you must set this as well
 #	PORT					: USB port
 #	THIRD_PARTY_HARDWARE	: Path to third party hardware folder
 #	INC_DIRS				: List pf directories containing header files
@@ -111,10 +112,24 @@ endif
 # Version-specific settings
 ifdef THIRD_PARTY_HARDWARE
     ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
+
     CORE = $(shell sed -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
-    ARD_SRC_DIR = $(THIRD_PARTY_HARDWARE)/cores/$(CORE)
+    ifndef CORE
+    	CORE = $(shell sed -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    endif
+
+    ifeq "$(CORE)" "arduino:arduino" # Check if it is using the standard Arduino core - supported since 1.5.x
+    	ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
+    else
+    	ARD_SRC_DIR = $(THIRD_PARTY_HARDWARE)/cores/$(CORE)
+    endif
+
     ARD_MAIN = $(ARD_SRC_DIR)/main.cpp
-    LIB_DIRS += $(THIRD_PARTY_HARDWARE)/variants/$(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    VARIANT = $(THIRD_PARTY_HARDWARE)/variants/$(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    ifndef VARIANT
+    	VARIANT = $(THIRD_PARTY_HARDWARE)/variants/$(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    endif
+    LIB_DIRS += $(VARIANT)
 else
 
 ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/boards.txt),)
@@ -172,8 +187,18 @@ VPATH = $(LIB_DIRS)
 # Macros derived from boards.txt
 MCU := $(shell sed -n 's/$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
 F_CPU := $(shell sed -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-UPLOAD_SPEED := \
-    $(shell sed -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+UPLOAD_SPEED := $(shell sed -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+
+# Check if the board is part of a sub menu
+ifndef MCU
+	MCU := $(shell sed -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+ifndef F_CPU
+	F_CPU := $(shell sed -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+ifndef UPLOAD_SPEED
+	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
 
 # Build tools.
 CC = $(ARD_BIN)/avr-gcc
