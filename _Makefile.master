@@ -8,7 +8,7 @@
 # Installation note.
 # Place this file in Arduino/Arduino_Makefile_master/
 # Even better:
-#        just 'git pull' from your Arduino directory (where your sketches are) 
+#        just 'git pull' from your Arduino directory (where your sketches are)
 #
 # Copyright 2011 Alan Burlison, alan@bleaklow.com.  All rights reserved.
 # Use is subject to license terms.
@@ -86,7 +86,7 @@ ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avrdude),)
     AVRDUDE_CONF ?= $(ARD_HOME)/hardware/tools/avrdude.conf
 endif
 
-ifneq ($(wildcard $(ARD_HOME)/build/linux/work/hardware/tools/avrdude),) 
+ifneq ($(wildcard $(ARD_HOME)/build/linux/work/hardware/tools/avrdude),)
     ARD_BIN ?= $(ARD_HOME)/build/linux/work/hardware/tools/avr/bin
     AVRDUDE ?= $(ARD_HOME)/build/linux/work/hardware/tools/avrdude
     AVRDUDE_CONF ?= $(ARD_HOME)/build/linux/work/hardware/tools/avrdude.conf
@@ -94,9 +94,9 @@ endif
 
 PROGRAMMER ?= arduino
 MON_SPEED ?= 115200
-GCS ?= -Wl,--relax,--gc-sections 
+GCS ?= -Wl,--relax,--gc-sections
 # Optimiser flags.
-OPT_FLAGS ?= -Os -freorder-blocks -fno-exceptions -ffunction-sections -fdata-sections -MMD
+OPT_FLAGS ?= -Os -fno-exceptions -ffunction-sections -fdata-sections -MMD
 
 
 ### Nothing below here should require editing. ###
