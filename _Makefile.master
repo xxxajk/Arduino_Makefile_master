@@ -96,7 +96,7 @@ PROGRAMMER ?= arduino
 MON_SPEED ?= 115200
 GCS ?= -Wl,--relax,--gc-sections
 # Optimiser flags.
-OPT_FLAGS ?= -Os -fno-exceptions -ffunction-sections -fdata-sections -MMD
+OPT_FLAGS ?= -Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD
 
 
 ### Nothing below here should require editing. ###
