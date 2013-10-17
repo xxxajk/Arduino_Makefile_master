@@ -108,7 +108,6 @@ ifneq ($(wildcard $(ARD_HOME)/build/linux/work/hardware/tools/avrdude),)
     AVRDUDE_CONF ?= $(ARD_HOME)/build/linux/work/hardware/tools/avrdude.conf
 endif
 
-PROGRAMMER ?= arduino
 MON_SPEED ?= 115200
 GCS ?= -Wl,--relax,--gc-sections 
 # Optimiser flags.
@@ -213,6 +212,16 @@ ifndef F_CPU
 endif
 ifndef UPLOAD_SPEED
 	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+
+ifndef PROGRAMMER
+	PROGRAMMER := $(shell sed -n 's/$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+	ifndef PROGRAMMER
+    	PROGRAMMER := $(shell sed -n 's/$(BOARD)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef PROGRAMMER
+    	PROGRAMMER = arduino # Defaults to arduino upload protocol
+	endif
 endif
 
 # Build tools.
