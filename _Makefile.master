@@ -206,6 +206,7 @@ VPATH = $(LIB_DIRS)
 MCU := $(shell sed -n 's/$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
 F_CPU := $(shell sed -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
 UPLOAD_SPEED := $(shell sed -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+BUILD_BOARD := $(shell sed -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
 
 # Check if the board is part of a sub menu
 ifndef MCU
@@ -216,6 +217,12 @@ ifndef F_CPU
 endif
 ifndef UPLOAD_SPEED
 	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+ifndef BUILD_BOARD
+    BUILD_BOARD := $(shell sed -n 's/$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+
+ifdef BUILD_BOARD
+	EXTRA_FLAGS += -DARDUINO_$(BUILD_BOARD)
 endif
 
 ifndef PROGRAMMER
