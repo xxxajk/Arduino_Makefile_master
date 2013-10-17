@@ -124,9 +124,9 @@ endif
 ifdef THIRD_PARTY_HARDWARE
     ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
 
-    CORE = $(shell sed -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    CORE := $(shell sed -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
     ifndef CORE
-    	CORE = $(shell sed -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	CORE = $(shell sed -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
 
     ifeq "$(CORE)" "arduino:arduino" # Check if it is using the standard Arduino core - supported since 1.5.x
@@ -136,11 +136,11 @@ ifdef THIRD_PARTY_HARDWARE
     endif
 
     ARD_MAIN = $(ARD_SRC_DIR)/main.cpp
-    VARIANT = $(THIRD_PARTY_HARDWARE)/variants/$(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    VARIANT := $(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     ifndef VARIANT
-    	VARIANT = $(THIRD_PARTY_HARDWARE)/variants/$(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	VARIANT = $(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
-    LIB_DIRS += $(VARIANT)
+    LIB_DIRS += $(THIRD_PARTY_HARDWARE)/variants/$(VARIANT)
 else
 
 ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/avr/boards.txt),)
@@ -167,7 +167,7 @@ endif
 endif
 
 ifndef ARD_BOARDS
-    $(error can not locate arduino tools)
+    $(error Can not locate boards.txt)
 endif
 
 # Platform-specific settings.
@@ -203,20 +203,21 @@ BUILD_DIR = build
 VPATH = $(LIB_DIRS)
 
 # Macros derived from boards.txt
-MCU := $(shell sed -n 's/$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
-F_CPU := $(shell sed -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-UPLOAD_SPEED := $(shell sed -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+MCU := $(shell sed -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+F_CPU := $(shell sed -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+UPLOAD_SPEED := $(shell sed -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
 BUILD_BOARD := $(shell sed -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
 
 # Check if the board is part of a sub menu
 ifndef MCU
-	MCU := $(shell sed -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	MCU := $(shell sed -n 's/$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef F_CPU
-	F_CPU := $(shell sed -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	F_CPU := $(shell sed -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef UPLOAD_SPEED
-	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
 ifndef BUILD_BOARD
     BUILD_BOARD := $(shell sed -n 's/$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
