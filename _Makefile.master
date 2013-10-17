@@ -147,14 +147,22 @@ ifdef THIRD_PARTY_HARDWARE
     LIB_DIRS += $(VARIANT)
 else
 
-ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/boards.txt),)
+ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/avr/boards.txt),)
+    ARD_BOARDS = $(ARD_HOME)/hardware/arduino/avr/boards.txt
+    ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
+    ARD_MAIN = $(ARD_SRC_DIR)/main.cpp
+
+    VARIANT := $(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    ifndef VARIANT
+    	VARIANT = $(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    endif
+    LIB_DIRS += $(ARD_HOME)/hardware/arduino/avr/variants/$(VARIANT)
+else ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/arduino/boards.txt
     ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/cores/arduino
     ARD_MAIN = $(ARD_SRC_DIR)/main.cpp
     LIB_DIRS += $(ARD_HOME)/hardware/arduino/variants/$(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-endif
-
-ifneq ($(wildcard $(ARD_HOME)/hardware/boards.txt),)
+else ifneq ($(wildcard $(ARD_HOME)/hardware/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/boards.txt
     ARD_SRC_DIR = $(ARD_HOME)/hardware/cores/arduino
     ARD_MAIN = $(ARD_SRC_DIR)/main.cxx
