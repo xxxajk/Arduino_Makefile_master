@@ -72,7 +72,19 @@
 
 # Global configuration.
 ARD_REV ?= 105
-ARD_HOME ?= /opt/Arduino
+
+PLATFORM = $(shell uname -s)
+ifndef ARD_HOME
+	ifeq "$(PLATFORM)" "SunOS"
+		ARD_HOME = /opt/Arduino
+	else ifeq "$(PLATFORM)" "Linux"
+		ARD_HOME = /opt/Arduino
+	else ifeq "$(PLATFORM)" "Darwin"
+		ARD_HOME = /Applications/Arduino.app
+	else
+    	$(error Unknown platform $(PLATFORM))
+	endif
+endif
 
 ifneq ($(wildcard $(ARD_HOME)/Contents/Resources/Java/hardware/tools/avr/bin/avrdude),)
 	ARD_HOME := $(ARD_HOME)/Contents/Resources/Java
@@ -156,7 +168,6 @@ ifndef ARD_BOARDS
 endif
 
 # Platform-specific settings.
-PLATFORM = $(shell uname -s)
 ifeq "$(PLATFORM)" "SunOS"
     define run-monitor
 	gnome-terminal -t '$(BOARD) $(PORT)' \
