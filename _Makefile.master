@@ -70,6 +70,23 @@
 #   EXTRA_FLAGS  : any extra flags that should be passed to the compilers
 #
 
+# Global configuration.
+MON_SPEED ?= 115200
+GCS ?= -Wl,--relax,--gc-sections
+# Optimiser flags.
+OPT_FLAGS ?= -Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD
+
+### Nothing below here should require editing. ###
+
+# Check for the required definitions.
+ifndef BOARD
+    $(error $$(BOARD) not defined)
+endif
+ifndef PORT
+    $(error $$(PORT) not defined)
+endif
+
+# Set default values if ARD_HOME is not defined.
 PLATFORM = $(shell uname -s)
 ifndef ARD_HOME
 	ifeq "$(PLATFORM)" "SunOS"
@@ -79,14 +96,16 @@ ifndef ARD_HOME
 	else ifeq "$(PLATFORM)" "Darwin"
 		ARD_HOME = /Applications/Arduino.app
 	else
-    	$(error Please define ARD_HOME)
+		$(error Please define ARD_HOME)
 	endif
 endif
 
+# Make if easier for Mac users, so they only have to define the path to the application.
 ifneq ($(wildcard $(ARD_HOME)/Contents/Resources/Java/hardware/tools/avr/bin/avrdude),)
 	ARD_HOME := $(ARD_HOME)/Contents/Resources/Java
 endif
 
+# Read revision from revisions.txt.
 ifndef ARD_REV
 	CONTENT = $(shell sed -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | cut -d " " -f1 | head -1) # Extract version number - fx. ARDUINO x.x.x
 	ARD_REV = $(subst .,,$(CONTENT)) # Remove punctuation marks
@@ -96,6 +115,7 @@ ifndef ARD_REV
 	$(error Please define ARD_REV)
 endif
 
+# Automatically locate avr tools
 ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avr/bin/avrdude),)
     ARD_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
     AVRDUDE ?= $(ARD_BIN)/avrdude
@@ -110,24 +130,8 @@ else ifneq ($(wildcard $(ARD_HOME)/build/linux/work/hardware/tools/avrdude),)
     AVRDUDE_CONF ?= $(ARD_HOME)/build/linux/work/hardware/tools/avrdude.conf
 endif
 
-MON_SPEED ?= 115200
-GCS ?= -Wl,--relax,--gc-sections
-# Optimiser flags.
-OPT_FLAGS ?= -Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD
-
-
-### Nothing below here should require editing. ###
-
-# Check for the required definitions.
-ifndef BOARD
-    $(error $$(BOARD) not defined)
-endif
-ifndef PORT
-    $(error $$(PORT) not defined)
-endif
-
 # Version-specific settings
-ifdef THIRD_PARTY_HARDWARE
+ifdef THIRD_PARTY_HARDWARE # Check if a third party hardware add-on is used
     ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
 
     CORE := $(shell sed -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
@@ -228,10 +232,12 @@ ifndef BUILD_BOARD
     BUILD_BOARD := $(shell sed -n 's/$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
+# Add extracted variable to compiler flags
 ifdef BUILD_BOARD
 	EXTRA_FLAGS += -DARDUINO_$(BUILD_BOARD)
 endif
 
+# Read programmer type from boards.txt
 ifndef PROGRAMMER
 	PROGRAMMER := $(shell sed -n 's/$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
 	ifndef PROGRAMMER
@@ -294,7 +300,7 @@ ifneq "$(strip $(LIB_C_SRC) $(LIB_CXX_SRC))" ""
 	LIB_LD_FLAG = -l$(LIB_LIB)
 endif
 
-# Sketch PDE source.
+# Sketch INO source.
 SKT_PDE_SRC = $(wildcard *.ino)
 ifneq "$(strip $(SKT_PDE_SRC))" ""
 	SKT_PDE_OBJ = $(BUILD_DIR)/$(SKETCH)_ino.o
