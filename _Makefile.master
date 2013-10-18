@@ -107,8 +107,8 @@ endif
 
 # Read revision from revisions.txt.
 ifndef ARD_REV
-	CONTENT = $(shell sed -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | cut -d " " -f1 | head -1) # Extract version number - it is in the following format: ARDUINO x.x.x
-	ARD_REV = $(subst .,,$(CONTENT)) # Remove punctuation marks
+	VERSION = $(shell sed -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | cut -d " " -f1 | head -1) # Extract version number - it is in the following format: ARDUINO x.x.x
+	ARD_REV = $(subst .,,$(VERSION)) # Remove punctuation marks
 endif
 
 ifndef ARD_REV
