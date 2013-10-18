@@ -70,9 +70,6 @@
 #   EXTRA_FLAGS  : any extra flags that should be passed to the compilers
 #
 
-# Global configuration.
-ARD_REV ?= 105
-
 PLATFORM = $(shell uname -s)
 ifndef ARD_HOME
 	ifeq "$(PLATFORM)" "SunOS"
@@ -88,6 +85,16 @@ endif
 
 ifneq ($(wildcard $(ARD_HOME)/Contents/Resources/Java/hardware/tools/avr/bin/avrdude),)
 	ARD_HOME := $(ARD_HOME)/Contents/Resources/Java
+endif
+
+ifndef ARD_REV
+	REVISION = $(ARD_HOME)/revisions.txt
+	CONTENT = $(shell sed -n 's/ARDUINO \(.*\)/\1/p' < $(REVISION) | cut -d " " -f1 | head -1)
+	ARD_REV = $(subst .,,$(CONTENT))
+endif
+
+ifndef ARD_REV
+	$(error Please define ARD_REV)
 endif
 
 ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avr/bin/avrdude),)
