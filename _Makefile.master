@@ -88,9 +88,8 @@ ifneq ($(wildcard $(ARD_HOME)/Contents/Resources/Java/hardware/tools/avr/bin/avr
 endif
 
 ifndef ARD_REV
-	REVISIONS = $(ARD_HOME)/revisions.txt
-	CONTENT = $(shell sed -n 's/ARDUINO \(.*\)/\1/p' < $(REVISIONS) | cut -d " " -f1 | head -1)
-	ARD_REV = $(subst .,,$(CONTENT))
+	CONTENT = $(shell sed -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | cut -d " " -f1 | head -1) # Extract version number - fx. ARDUINO x.x.x
+	ARD_REV = $(subst .,,$(CONTENT)) # Remove commas
 endif
 
 ifndef ARD_REV
