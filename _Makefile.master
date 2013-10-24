@@ -74,6 +74,32 @@
 ARD_REV ?= 105
 ARD_HOME ?= /opt/Arduino
 
+
+ifndef LIB_DIRS
+
+# Automatically add user libraries and Arduino libraries. 
+# Note: This code is dumb! It does not follow conditionals in the code.
+#       This will also include multiple versions of a USER library.
+#       The effect of this is that it may compile unwanted code.
+#       It does seem to work OK dispite this.
+#
+# TO-DO: Scan user libraries for interdependence?
+# TO-DO: Scan Arduino libraries for interdependence?
+
+# Step 1: Gather the primary directories
+PRILIB_DIRS = $(shell for i in `find . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec grep '\#include.*<.*>' \{\} \; | sed 's/>.*$$//g' | sed 's/.*<//g' ` ; { find ../libraries -maxdepth 2 -name $$i -exec dirname \{\} \; ;} | uniq )
+PRILIB_DIRS += $(shell for i in `find . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec grep '\#include.*<.*>' \{\} \; | sed 's/\.h.*>.*$$//g' | sed 's/.*<//g' ` ; { find $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec dirname \{\} \; ;} 2>/dev/null | uniq )
+
+# Step 2: Gather any 'utility' subdirectories. 
+# This stupidity brought to you by the developers of the Arduino 'IDE', and 
+# by the library developers that don't know how to use include properly.
+UTLLIB_DIRS=$(shell for i in $(PRILIB_DIRS) ; { find $$i -name 'utility' -print ; } )
+
+# Step 3: Combine everything
+LIB_DIRS = $(PRILIB_DIRS) $(UTLLIB_DIRS)
+
+endif
+
 ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avr/bin/avrdude),)
     ARD_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
     AVRDUDE ?= $(ARD_BIN)/avrdude
@@ -150,13 +176,6 @@ endif
 ifndef ARD_BOARDS
     $(error can not locate arduino tools)
 endif
-
-###########################################
-# TO-DO:                                  #
-# Add $(ARD_HOME)/libraries/* to LIB_DIRS #
-# Add ../libraries/* to LIB_DIRS          #
-###########################################
-
 # Platform-specific settings.
 PLATFORM = $(shell uname -s)
 ifeq "$(PLATFORM)" "SunOS"
@@ -264,6 +283,8 @@ ifneq "$(strip $(SKT_PDE_SRC))" ""
 	SKT_PDE_OBJ = $(BUILD_DIR)/$(SKETCH)_ino.o
 endif
 
+
+
 # C and C++ source.
 SKT_C_SRC = $(wildcard *.c)
 SKT_CXX_SRC = $(wildcard *.cpp)
@@ -311,7 +332,6 @@ $(BUILD_DIR) :
 	$(MKDIR) $@
 
 $(SKT_PDE_OBJ) : $(SKT_PDE_SRC)
-	#echo '#include <Arduino.h>' > $(BUILD_DIR)/$(SKETCH)_ino.cpp
 	cat $(SKT_PDE_SRC) > $(BUILD_DIR)/$(SKETCH)_ino.cpp
 	cd $(BUILD_DIR) && $(CXX) -c $(subst build/,,$(CXX_FLAGS)) \
 	    $(OPT_FLAGS) $(ARD_FLAGS) -I.. \
