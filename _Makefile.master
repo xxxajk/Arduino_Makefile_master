@@ -151,6 +151,12 @@ ifndef ARD_BOARDS
     $(error can not locate arduino tools)
 endif
 
+###########################################
+# TO-DO:                                  #
+# Add $(ARD_HOME)/libraries/* to LIB_DIRS #
+# Add ../libraries/* to LIB_DIRS          #
+###########################################
+
 # Platform-specific settings.
 PLATFORM = $(shell uname -s)
 ifeq "$(PLATFORM)" "SunOS"
