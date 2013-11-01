@@ -134,7 +134,9 @@ endif
 ifdef THIRD_PARTY_HARDWARE # Check if a third party hardware add-on is used.
     ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
 
-    CORE := $(shell sed -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    ifdef BOARD_SUB
+    	CORE := $(shell sed -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    endif
     ifndef CORE
     	CORE = $(shell sed -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
@@ -145,7 +147,9 @@ ifdef THIRD_PARTY_HARDWARE # Check if a third party hardware add-on is used.
     	ARD_SRC_DIR = $(THIRD_PARTY_HARDWARE)/cores/$(CORE)
     endif
 
-    VARIANT := $(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    ifdef BOARD_SUB
+    	VARIANT := $(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    endif
     ifndef VARIANT
     	VARIANT = $(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
@@ -156,7 +160,9 @@ ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/avr/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/arduino/avr/boards.txt
     ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
 
-    VARIANT := $(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    ifdef BOARD_SUB
+    	VARIANT := $(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    endif
     ifndef VARIANT
     	VARIANT = $(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
@@ -209,10 +215,12 @@ BUILD_DIR = build
 VPATH = $(LIB_DIRS)
 
 # Macros derived from boards.txt.
-MCU := $(shell sed -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
-F_CPU := $(shell sed -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-UPLOAD_SPEED := $(shell sed -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
-BUILD_BOARD := $(shell sed -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+ifdef BOARD_SUB
+	MCU := $(shell sed -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	F_CPU := $(shell sed -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+	BUILD_BOARD := $(shell sed -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
 
 # Check if the board is part of a sub menu.
 ifndef MCU
@@ -235,7 +243,9 @@ endif
 
 # Read programmer type from boards.txt.
 ifndef PROGRAMMER
-	PROGRAMMER := $(shell sed -n 's/$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+	ifdef BOARD_SUB
+		PROGRAMMER := $(shell sed -n 's/$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
 	ifndef PROGRAMMER
     	PROGRAMMER := $(shell sed -n 's/$(BOARD)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
 	endif
