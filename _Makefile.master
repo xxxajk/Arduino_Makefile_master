@@ -68,13 +68,18 @@
 #   PROGRAMMER   : avrdude programmer type
 #   MON_SPEED    : serial monitor speed
 #   EXTRA_FLAGS  : any extra flags that should be passed to the compilers
+#   FIND         : The GNU or system find utility
+#   UNIQ         : The GNU or system uniq utility
+#   DIRNAME      : The GNU or system dirname utlity
+#   SED          : The GNU or system sed utility
+#   GREP         : The GNU or system grep utility
 #
 
 
 
 #
 #
-# TO-DO: Use $(FIND) $(GREP) $(SED)
+# TO-DO: Use $(FIND) $(GREP) $(SED) $(DIRNAME) $(UNIQ)
 #
 #
 
@@ -92,7 +97,10 @@ MKDIR = mkdir -p
 RM = rm -fr
 MV = mv -f
 FIND ?= find
-
+UNIQ ?= uniq
+DIRNAME ?= dirname
+SED ?= sed
+GREP ?= grep
 
 # Check for the required definitions.
 ifndef BOARD
