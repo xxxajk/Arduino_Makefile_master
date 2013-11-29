@@ -75,16 +75,6 @@
 #   GREP         : The GNU or system grep utility
 #
 
-
-
-#
-#
-# TO-DO: Use $(FIND) $(GREP) $(SED) $(DIRNAME) $(UNIQ)
-#
-#
-
-
-
 # Global configuration.
 
 MON_SPEED ?= 115200
@@ -131,7 +121,7 @@ endif
 
 # Read revision from revisions.txt.
 ifndef ARD_REV
-	VERSION = $(shell sed -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | cut -d " " -f1 | head -1) # Extract version number - it is in the following format: ARDUINO x.x.x
+	VERSION = $(shell $(SED) -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | cut -d " " -f1 | head -1) # Extract version number - it is in the following format: ARDUINO x.x.x
 	ARD_REV = $(subst .,,$(VERSION)) # Remove punctuation marks
 endif
 
@@ -159,10 +149,10 @@ ifdef THIRD_PARTY_HARDWARE # Check if a third party hardware add-on is used.
     ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
 
     ifdef BOARD_SUB
-    	CORE := $(shell sed -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	CORE := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     ifndef CORE
-    	CORE = $(shell sed -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	CORE = $(shell $(SED) -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
 
     ifeq "$(CORE)" "arduino:arduino" # Check if it is using the standard Arduino core - supported since 1.5.x
@@ -172,10 +162,10 @@ ifdef THIRD_PARTY_HARDWARE # Check if a third party hardware add-on is used.
     endif
 
     ifdef BOARD_SUB
-    	VARIANT := $(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	VARIANT := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     ifndef VARIANT
-    	VARIANT = $(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	VARIANT = $(shell $(SED) -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     INTERNAL_LIB_DIRS += $(THIRD_PARTY_HARDWARE)/variants/$(VARIANT)
 else
@@ -185,16 +175,16 @@ ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/avr/boards.txt),)
     ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
 
     ifdef BOARD_SUB
-    	VARIANT := $(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	VARIANT := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     ifndef VARIANT
-    	VARIANT = $(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	VARIANT = $(shell $(SED) -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/avr/variants/$(VARIANT)
 else ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/arduino/boards.txt
     ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/cores/arduino
-    INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/variants/$(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/variants/$(shell $(SED) -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
 else ifneq ($(wildcard $(ARD_HOME)/hardware/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/boards.txt
     ARD_SRC_DIR = $(ARD_HOME)/hardware/cores/arduino
@@ -239,24 +229,24 @@ VPATH = $(LIB_DIRS)
 
 # Macros derived from boards.txt.
 ifdef BOARD_SUB
-	MCU := $(shell sed -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
-	F_CPU := $(shell sed -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
-	BUILD_BOARD := $(shell sed -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+	MCU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+	BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 # Check if the board is part of a sub menu.
 ifndef MCU
-	MCU := $(shell sed -n 's/$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	MCU := $(shell $(SED) -n 's/$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef F_CPU
-	F_CPU := $(shell sed -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	F_CPU := $(shell $(SED) -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef UPLOAD_SPEED
-	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+	UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef BUILD_BOARD
-    BUILD_BOARD := $(shell sed -n 's/$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 # Add extracted variable to compiler flags.
@@ -267,10 +257,10 @@ endif
 # Read programmer type from boards.txt.
 ifndef PROGRAMMER
 	ifdef BOARD_SUB
-		PROGRAMMER := $(shell sed -n 's/$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+		PROGRAMMER := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
 	endif
 	ifndef PROGRAMMER
-    	PROGRAMMER := $(shell sed -n 's/$(BOARD)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	PROGRAMMER := $(shell $(SED) -n 's/$(BOARD)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
 	endif
 	ifndef PROGRAMMER
     	PROGRAMMER = arduino # Defaults to arduino upload protocol
@@ -299,13 +289,13 @@ ifndef LIB_DIRS
 # TO-DO: Scan Arduino libraries for interdependence?
 
 # Step 1: Gather the primary directories
-PRILIB_DIRS = $(shell for i in `find . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec grep '\#include.*<.*>' \{\} \; | sed 's/>.*$$//g' | sed 's/.*<//g' ` ; { find ../libraries -maxdepth 2 -name $$i -exec dirname \{\} \; ;} | uniq )
-PRILIB_DIRS += $(shell for i in `find . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec grep '\#include.*<.*>' \{\} \; | sed 's/\.h.*>.*$$//g' | sed 's/.*<//g' ` ; { find $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec dirname \{\} \; ;} 2>/dev/null | uniq )
+PRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; | $(SED) 's/>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ;} | $(UNIQ) )
+PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; | $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
 
 # Step 2: Gather any 'utility' subdirectories. 
 # This stupidity brought to you by the developers of the Arduino 'IDE', and 
 # by the library developers that don't know how to use include properly.
-UTLLIB_DIRS=$(shell for i in $(PRILIB_DIRS) ; { find $$i -name 'utility' -print ; } )
+UTLLIB_DIRS=$(shell for i in $(PRILIB_DIRS) ; { $(FIND) $$i -name 'utility' -print ; } )
 
 # Step 3: Combine everything
 LIB_DIRS = $(PRILIB_DIRS) $(UTLLIB_DIRS)
