@@ -70,62 +70,29 @@
 #   EXTRA_FLAGS  : any extra flags that should be passed to the compilers
 #
 
-# Global configuration.
-ARD_REV ?= 105
-ARD_HOME ?= /opt/Arduino
 
 
-ifndef LIB_DIRS
-
-# Automatically add user libraries and Arduino libraries. 
-# Note: This code is dumb! It does not follow conditionals in the code.
-#       This will also include multiple versions of a USER library.
-#       The effect of this is that it may compile unwanted code.
-#       It does seem to work OK dispite this.
 #
-# TO-DO: Scan user libraries for interdependence?
-# TO-DO: Scan Arduino libraries for interdependence?
+#
+# TO-DO: Use $(FIND) $(GREP) $(SED)
+#
+#
 
-# Step 1: Gather the primary directories
-PRILIB_DIRS = $(shell for i in `find . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec grep '\#include.*<.*>' \{\} \; | sed 's/>.*$$//g' | sed 's/.*<//g' ` ; { find ../libraries -maxdepth 2 -name $$i -exec dirname \{\} \; ;} | uniq )
-PRILIB_DIRS += $(shell for i in `find . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec grep '\#include.*<.*>' \{\} \; | sed 's/\.h.*>.*$$//g' | sed 's/.*<//g' ` ; { find $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec dirname \{\} \; ;} 2>/dev/null | uniq )
 
-# Step 2: Gather any 'utility' subdirectories. 
-# This stupidity brought to you by the developers of the Arduino 'IDE', and 
-# by the library developers that don't know how to use include properly.
-UTLLIB_DIRS=$(shell for i in $(PRILIB_DIRS) ; { find $$i -name 'utility' -print ; } )
 
-# Step 3: Combine everything
-LIB_DIRS = $(PRILIB_DIRS) $(UTLLIB_DIRS)
+# Global configuration.
 
-endif
-
-ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avr/bin/avrdude),)
-    ARD_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
-    AVRDUDE ?= $(ARD_BIN)/avrdude
-    AVRDUDE_CONF ?= $(ARD_HOME)/hardware/tools/avr/etc/avrdude.conf
-endif
-
-ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avrdude),)
-    ARD_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
-    AVRDUDE ?= $(ARD_HOME)/hardware/tools/avrdude
-    AVRDUDE_CONF ?= $(ARD_HOME)/hardware/tools/avrdude.conf
-endif
-
-ifneq ($(wildcard $(ARD_HOME)/build/linux/work/hardware/tools/avrdude),)
-    ARD_BIN ?= $(ARD_HOME)/build/linux/work/hardware/tools/avr/bin
-    AVRDUDE ?= $(ARD_HOME)/build/linux/work/hardware/tools/avrdude
-    AVRDUDE_CONF ?= $(ARD_HOME)/build/linux/work/hardware/tools/avrdude.conf
-endif
-
-PROGRAMMER ?= arduino
 MON_SPEED ?= 115200
 GCS ?= -Wl,--relax,--gc-sections
 # Optimiser flags.
 OPT_FLAGS ?= -Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD
 
-
 ### Nothing below here should require editing. ###
+MKDIR = mkdir -p
+RM = rm -fr
+MV = mv -f
+FIND ?= find
+
 
 # Check for the required definitions.
 ifndef BOARD
@@ -135,13 +102,59 @@ ifndef PORT
     $(error $$(PORT) not defined)
 endif
 
-# Version-specific settings
-ifdef THIRD_PARTY_HARDWARE
+# Set default values if ARD_HOME is not defined.
+PLATFORM = $(shell uname -s)
+ifndef ARD_HOME
+	ifeq "$(PLATFORM)" "SunOS"
+		ARD_HOME = /opt/Arduino
+	else ifeq "$(PLATFORM)" "Linux"
+		ARD_HOME = /opt/Arduino
+	else ifeq "$(PLATFORM)" "Darwin"
+		ARD_HOME = /Applications/Arduino.app
+	else
+		$(error Please define ARD_HOME)
+	endif
+endif
+
+# Make if easier for Mac users, so they only have to define the path to the application.
+ifneq ($(wildcard $(ARD_HOME)/Contents/Resources/Java/hardware/tools/avr/bin/avrdude),)
+	ARD_HOME := $(ARD_HOME)/Contents/Resources/Java
+endif
+
+# Read revision from revisions.txt.
+ifndef ARD_REV
+	VERSION = $(shell sed -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | cut -d " " -f1 | head -1) # Extract version number - it is in the following format: ARDUINO x.x.x
+	ARD_REV = $(subst .,,$(VERSION)) # Remove punctuation marks
+endif
+
+ifndef ARD_REV
+	$(error Please define ARD_REV)
+endif
+
+# Automatically locate avr tools.
+ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avr/bin/avrdude),)
+    ARD_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
+    AVRDUDE ?= $(ARD_BIN)/avrdude
+    AVRDUDE_CONF ?= $(ARD_HOME)/hardware/tools/avr/etc/avrdude.conf
+else ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avrdude),)
+    ARD_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
+    AVRDUDE ?= $(ARD_HOME)/hardware/tools/avrdude
+    AVRDUDE_CONF ?= $(ARD_HOME)/hardware/tools/avrdude.conf
+else ifneq ($(wildcard $(ARD_HOME)/build/linux/work/hardware/tools/avrdude),)
+    ARD_BIN ?= $(ARD_HOME)/build/linux/work/hardware/tools/avr/bin
+    AVRDUDE ?= $(ARD_HOME)/build/linux/work/hardware/tools/avrdude
+    AVRDUDE_CONF ?= $(ARD_HOME)/build/linux/work/hardware/tools/avrdude.conf
+endif
+
+# Version-specific settings.
+ifdef THIRD_PARTY_HARDWARE # Check if a third party hardware add-on is used.
     ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
 
-    CORE = $(shell sed -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    ifdef BOARD_SUB
+    	CORE := $(shell sed -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    endif
     ifndef CORE
-    	CORE = $(shell sed -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	CORE = $(shell sed -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
 
     ifeq "$(CORE)" "arduino:arduino" # Check if it is using the standard Arduino core - supported since 1.5.x
@@ -150,34 +163,41 @@ ifdef THIRD_PARTY_HARDWARE
     	ARD_SRC_DIR = $(THIRD_PARTY_HARDWARE)/cores/$(CORE)
     endif
 
-    ARD_MAIN = $(ARD_SRC_DIR)/main.cpp
-    VARIANT = $(THIRD_PARTY_HARDWARE)/variants/$(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-    ifndef VARIANT
-    	VARIANT = $(THIRD_PARTY_HARDWARE)/variants/$(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    ifdef BOARD_SUB
+    	VARIANT := $(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
-    LIB_DIRS += $(VARIANT)
+    ifndef VARIANT
+    	VARIANT = $(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    endif
+    INTERNAL_LIB_DIRS += $(THIRD_PARTY_HARDWARE)/variants/$(VARIANT)
 else
 
-ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/boards.txt),)
+ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/avr/boards.txt),)
+    ARD_BOARDS = $(ARD_HOME)/hardware/arduino/avr/boards.txt
+    ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
+
+    ifdef BOARD_SUB
+    	VARIANT := $(shell sed -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    endif
+    ifndef VARIANT
+    	VARIANT = $(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    endif
+    INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/avr/variants/$(VARIANT)
+else ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/arduino/boards.txt
     ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/cores/arduino
-    ARD_MAIN = $(ARD_SRC_DIR)/main.cpp
-    LIB_DIRS += $(ARD_HOME)/hardware/arduino/variants/$(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-endif
-
-ifneq ($(wildcard $(ARD_HOME)/hardware/boards.txt),)
+    INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/variants/$(shell sed -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+else ifneq ($(wildcard $(ARD_HOME)/hardware/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/boards.txt
     ARD_SRC_DIR = $(ARD_HOME)/hardware/cores/arduino
-    ARD_MAIN = $(ARD_SRC_DIR)/main.cxx
 endif
 
 endif
 
 ifndef ARD_BOARDS
-    $(error can not locate arduino tools)
+    $(error Can not locate boards.txt)
 endif
 # Platform-specific settings.
-PLATFORM = $(shell uname -s)
 ifeq "$(PLATFORM)" "SunOS"
     define run-monitor
 	gnome-terminal -t '$(BOARD) $(PORT)' \
@@ -209,20 +229,44 @@ SKETCH = $(notdir $(CURDIR))
 BUILD_DIR = build
 VPATH = $(LIB_DIRS)
 
-# Macros derived from boards.txt
-MCU := $(shell sed -n 's/$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
-F_CPU := $(shell sed -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-UPLOAD_SPEED := $(shell sed -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
-
-# Check if the board is part of a sub menu
-ifndef MCU
+# Macros derived from boards.txt.
+ifdef BOARD_SUB
 	MCU := $(shell sed -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	F_CPU := $(shell sed -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+	BUILD_BOARD := $(shell sed -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+
+# Check if the board is part of a sub menu.
+ifndef MCU
+	MCU := $(shell sed -n 's/$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef F_CPU
-	F_CPU := $(shell sed -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+	F_CPU := $(shell sed -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef UPLOAD_SPEED
-	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+	UPLOAD_SPEED := $(shell sed -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+ifndef BUILD_BOARD
+    BUILD_BOARD := $(shell sed -n 's/$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+
+# Add extracted variable to compiler flags.
+ifdef BUILD_BOARD
+	EXTRA_FLAGS += -DARDUINO_$(BUILD_BOARD)
+endif
+
+# Read programmer type from boards.txt.
+ifndef PROGRAMMER
+	ifdef BOARD_SUB
+		PROGRAMMER := $(shell sed -n 's/$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef PROGRAMMER
+    	PROGRAMMER := $(shell sed -n 's/$(BOARD)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef PROGRAMMER
+    	PROGRAMMER = arduino # Defaults to arduino upload protocol
+	endif
 endif
 
 # Build tools.
@@ -234,10 +278,35 @@ OBJDUMP = $(ARD_BIN)/avr-objdump
 AR = $(ARD_BIN)/avr-ar
 SIZE = $(ARD_BIN)/avr-size
 NM = $(ARD_BIN)/avr-nm
-MKDIR = mkdir -p
-RM = rm -fr
-MV = mv -f
-FIND ?= find
+
+ifndef LIB_DIRS
+
+# Automatically add user libraries and Arduino libraries. 
+# Note: This code is dumb! It does not follow conditionals in the code.
+#       This will also include multiple versions of a USER library.
+#       The effect of this is that it may compile unwanted code.
+#       It does seem to work OK dispite this.
+#
+# TO-DO: Scan user libraries for interdependence?
+# TO-DO: Scan Arduino libraries for interdependence?
+
+# Step 1: Gather the primary directories
+PRILIB_DIRS = $(shell for i in `find . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec grep '\#include.*<.*>' \{\} \; | sed 's/>.*$$//g' | sed 's/.*<//g' ` ; { find ../libraries -maxdepth 2 -name $$i -exec dirname \{\} \; ;} | uniq )
+PRILIB_DIRS += $(shell for i in `find . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec grep '\#include.*<.*>' \{\} \; | sed 's/\.h.*>.*$$//g' | sed 's/.*<//g' ` ; { find $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec dirname \{\} \; ;} 2>/dev/null | uniq )
+
+# Step 2: Gather any 'utility' subdirectories. 
+# This stupidity brought to you by the developers of the Arduino 'IDE', and 
+# by the library developers that don't know how to use include properly.
+UTLLIB_DIRS=$(shell for i in $(PRILIB_DIRS) ; { find $$i -name 'utility' -print ; } )
+
+# Step 3: Combine everything
+LIB_DIRS = $(PRILIB_DIRS) $(UTLLIB_DIRS)
+
+endif
+
+# These always should come LAST so that user libraries may over-ride
+# This is how the IDE does it too.
+LIB_DIRS += $(INTERNAL_LIB_DIRS)
 
 # Compiler flags.
 INC_FLAGS = \
@@ -277,7 +346,7 @@ ifneq "$(strip $(LIB_C_SRC) $(LIB_CXX_SRC))" ""
 	LIB_LD_FLAG = -l$(LIB_LIB)
 endif
 
-# Sketch PDE source.
+# Sketch INO source.
 SKT_PDE_SRC = $(wildcard *.ino)
 ifneq "$(strip $(SKT_PDE_SRC))" ""
 	SKT_PDE_OBJ = $(BUILD_DIR)/$(SKETCH)_ino.o
