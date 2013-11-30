@@ -8,3 +8,7 @@ NOTE:
   Wprogram.h then YOU need to fix YOUR code.
   YOU need to also properly do all function prototypes as well.
   Avoid problems! Do your code the proper way from the start.
+
+Features:
+  Supports standard avr Arduino boards
+  Supports the Teensy development boards from pjrc.com
