@@ -285,7 +285,8 @@ ifndef MCU
     ifneq ($(wildcard $(TEENSY_BOARDS)),)
         USE_LAYOUT ?= LAYOUT_US_ENGLISH
         ARD_BOARDS = $(TEENSY_BOARDS)
-        ARD_SRC_DIR = $(TEENSY_BASE)$(BOARD)
+        BUILD_CORE = $(shell $(SED) -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+        ARD_SRC_DIR = $(TEENSY_BASE)$(BUILD_CORE)
         ifdef BOARD_SUB
             CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
             MCU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
