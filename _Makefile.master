@@ -358,6 +358,39 @@ ifdef USE_LAYOUT
 endif
 
 ifdef BOARD_EXTRA_FLAGS
+	ifdef BOARD_SUB
+		USB_VID := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_PID := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_MANUFACTURER := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_PRODUCT := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef USB_VID
+		USB_VID := $(shell $(SED) -n 's/$(BOARD)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef USB_PID
+		USB_PID := $(shell $(SED) -n 's/$(BOARD)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef USB_MANUFACTURER
+		USB_MANUFACTURER := $(shell $(SED) -n 's/$(BOARD)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef USB_PRODUCT
+		USB_PRODUCT := $(shell $(SED) -n 's/$(BOARD)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+
+	ifdef USB_VID
+		USB_FLAGS = -DUSB_VID=$(USB_VID)
+	endif
+	ifdef USB_PID
+		USB_FLAGS += -DUSB_PID=$(USB_PID)
+	endif
+	ifdef USB_MANUFACTURER
+		USB_FLAGS += '-DUSB_MANUFACTURER=$(USB_MANUFACTURER)'
+	endif
+	ifdef USB_PRODUCT
+		USB_FLAGS += '-DUSB_PRODUCT=$(USB_PRODUCT)'
+	endif
+
+	BOARD_EXTRA_FLAGS := $(subst {build.usb_flags},$(USB_FLAGS),$(BOARD_EXTRA_FLAGS)) # Subst {build.usb_flags} with -DUSB_VID={build.vid} -DUSB_PID={build.pid} '-DUSB_MANUFACTURER={build.usb_manufacturer}' '-DUSB_PRODUCT={build.usb_product}'
 	EXTRA_FLAGS += $(BOARD_EXTRA_FLAGS)
 endif
 
