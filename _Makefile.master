@@ -262,6 +262,7 @@ ifdef BOARD_SUB
     F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
     UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
     BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BOARD_EXTRA_FLAGS := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 # Check if the board is part of a sub menu.
@@ -277,7 +278,9 @@ endif
 ifndef BUILD_BOARD
     BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
-
+ifndef BOARD_EXTRA_FLAGS
+    BOARD_EXTRA_FLAGS := $(shell $(SED) -n 's/$(BOARD)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
 
 
 # No board yet. Check for teensy boards.
@@ -353,6 +356,11 @@ endif
 ifdef USE_LAYOUT
     EXTRA_FLAGS += -D$(USE_LAYOUT)=1
 endif
+
+ifdef BOARD_EXTRA_FLAGS
+	EXTRA_FLAGS += $(BOARD_EXTRA_FLAGS)
+endif
+
 
 # Read programmer type from boards.txt.
 ifndef PROGRAMMER
