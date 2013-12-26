@@ -376,16 +376,32 @@ ifndef PROGRAMMER
 endif
 
 # extract arch
+
+# Arduino architecture:
 ifdef BOARD_SUB
-    BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef BUILD_ARCH
-    BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+
+# Teensy architecture:
+ifndef BUILD_ARCH
+	ifdef BOARD_SUB
+    	BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef BUILD_ARCH
+    	BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
 endif
 
 # default is avr
 ifndef BUILD_ARCH
     BUILD_ARCH = avr
+endif
+
+ifdef BUILD_ARCH
+	EXTRA_FLAGS += -DARDUINO_ARCH_$(shell echo $(BUILD_ARCH) | tr a-z A-Z)
 endif
 
 ifeq "$(BUILD_ARCH)" "arm-none-eabi"
