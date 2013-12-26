@@ -286,7 +286,7 @@ endif
 # No board yet. Check for teensy boards.
 ifndef MCU
     ifneq ($(wildcard $(TEENSY_BOARDS)),)
-    	USB_BUILD_DEFINE ?= USB_SERIAL # Can be set to the following: USB_SERIAL, USB_HID, USB_SERIAL_HID, USB_DISK, USB_DISK_SDFLASH, USB_MIDI, USB_RAWHID or USB_FLIGHTSIM
+        USB_BUILD_DEFINE ?= USB_SERIAL # Can be set to the following: USB_SERIAL, USB_HID, USB_SERIAL_HID, USB_DISK, USB_DISK_SDFLASH, USB_MIDI, USB_RAWHID or USB_FLIGHTSIM
         USE_LAYOUT ?= LAYOUT_US_ENGLISH
         ARD_BOARDS = $(TEENSY_BOARDS)
         BUILD_CORE = $(shell $(SED) -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
