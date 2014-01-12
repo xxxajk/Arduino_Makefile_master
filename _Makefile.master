@@ -337,16 +337,18 @@ CPU_MCU = $(MCU)
 #
 # Pull in any regular extra C flags
 #
-EXT_C_FLAGS := $(shell $(SED) -n 's/$(BOARD)\.build\.option.*=\(.*\)/\1/p' < $(ARD_BOARDS))
+#
+
+EXT_C_FLAGS := $(shell $(SED) -n 's/$(BOARD)\.build\.option[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
 ifdef EXT_C_FLAGS
-    EXT_C_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.menu\.usb\.serial\.build\.define.*=\(.*\)/\1/p' < $(ARD_BOARDS))
-    EXT_CPP_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.cppoption.*=\(.*\)/\1/p' < $(ARD_BOARDS)) $(EXT_C_FLAGS)
+    EXT_C_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.menu\.usb\.serial\.build\.define[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+    EXT_CPP_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.cppoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS)) $(EXT_C_FLAGS)
     EXT_LINK_T_FLAG := $(shell $(SED) -n 's/$(BOARD)\.build\.linkscript=\(.*\)/\1/p' < $(ARD_BOARDS))
     ifdef EXT_LINK_T_FLAG
         EXT_LINK_FLAGS += -T$(ARD_SRC_DIR)/$(EXT_LINK_T_FLAG)
     endif
-    EXT_LINK_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.linkoption.*=\(.*\)/\1/p' < $(ARD_BOARDS))
-    EXT_LINK_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.additionalobject.*=\(.*\)/\1/p' < $(ARD_BOARDS))
+    EXT_LINK_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.linkoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+    EXT_LINK_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.additionalobject[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 # Add extracted variable to compiler flags.
