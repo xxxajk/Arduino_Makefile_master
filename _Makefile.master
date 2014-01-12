@@ -262,6 +262,7 @@ ifdef BOARD_SUB
     F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
     UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
     BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BOARD_EXTRA_FLAGS := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 # Check if the board is part of a sub menu.
@@ -277,15 +278,19 @@ endif
 ifndef BUILD_BOARD
     BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
-
+ifndef BOARD_EXTRA_FLAGS
+    BOARD_EXTRA_FLAGS := $(shell $(SED) -n 's/$(BOARD)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
 
 
 # No board yet. Check for teensy boards.
 ifndef MCU
     ifneq ($(wildcard $(TEENSY_BOARDS)),)
+        USB_BUILD_DEFINE ?= USB_SERIAL # Can be set to the following: USB_SERIAL, USB_HID, USB_SERIAL_HID, USB_DISK, USB_DISK_SDFLASH, USB_MIDI, USB_RAWHID or USB_FLIGHTSIM
         USE_LAYOUT ?= LAYOUT_US_ENGLISH
         ARD_BOARDS = $(TEENSY_BOARDS)
-        ARD_SRC_DIR = $(TEENSY_BASE)$(BOARD)
+        BUILD_CORE = $(shell $(SED) -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+        ARD_SRC_DIR = $(TEENSY_BASE)$(BUILD_CORE)
         ifdef BOARD_SUB
             CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
             MCU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
@@ -349,9 +354,51 @@ ifdef BUILD_BOARD
     EXTRA_FLAGS += -DARDUINO_$(BUILD_BOARD)
 endif
 
+ifdef USB_BUILD_DEFINE
+    EXTRA_FLAGS += -D$(USB_BUILD_DEFINE)
+endif
+
 ifdef USE_LAYOUT
     EXTRA_FLAGS += -D$(USE_LAYOUT)=1
 endif
+
+ifdef BOARD_EXTRA_FLAGS
+	ifdef BOARD_SUB
+		USB_VID := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_PID := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_MANUFACTURER := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_PRODUCT := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef USB_VID
+		USB_VID := $(shell $(SED) -n 's/$(BOARD)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef USB_PID
+		USB_PID := $(shell $(SED) -n 's/$(BOARD)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef USB_MANUFACTURER
+		USB_MANUFACTURER := $(shell $(SED) -n 's/$(BOARD)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef USB_PRODUCT
+		USB_PRODUCT := $(shell $(SED) -n 's/$(BOARD)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+
+	ifdef USB_VID
+		USB_FLAGS = -DUSB_VID=$(USB_VID)
+	endif
+	ifdef USB_PID
+		USB_FLAGS += -DUSB_PID=$(USB_PID)
+	endif
+	ifdef USB_MANUFACTURER
+		USB_FLAGS += '-DUSB_MANUFACTURER=$(USB_MANUFACTURER)'
+	endif
+	ifdef USB_PRODUCT
+		USB_FLAGS += '-DUSB_PRODUCT=$(USB_PRODUCT)'
+	endif
+
+	BOARD_EXTRA_FLAGS := $(subst {build.usb_flags},$(USB_FLAGS),$(BOARD_EXTRA_FLAGS)) # Subst {build.usb_flags} with -DUSB_VID={build.vid} -DUSB_PID={build.pid} '-DUSB_MANUFACTURER={build.usb_manufacturer}' '-DUSB_PRODUCT={build.usb_product}'
+	EXTRA_FLAGS += $(BOARD_EXTRA_FLAGS)
+endif
+
 
 # Read programmer type from boards.txt.
 ifndef PROGRAMMER
@@ -367,16 +414,32 @@ ifndef PROGRAMMER
 endif
 
 # extract arch
+
+# Arduino architecture:
 ifdef BOARD_SUB
-    BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef BUILD_ARCH
-    BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+
+# Teensy architecture:
+ifndef BUILD_ARCH
+	ifdef BOARD_SUB
+    	BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
+	ifndef BUILD_ARCH
+    	BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+	endif
 endif
 
 # default is avr
 ifndef BUILD_ARCH
     BUILD_ARCH = avr
+endif
+
+ifdef BUILD_ARCH
+	EXTRA_FLAGS += -DARDUINO_ARCH_$(shell echo $(BUILD_ARCH) | tr a-z A-Z)
 endif
 
 ifeq "$(BUILD_ARCH)" "arm-none-eabi"
@@ -416,6 +479,7 @@ ifndef LIB_DIRS
 # Step 1: Gather the primary directories
 PRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
 PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
+PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(ARD_HOME)/hardware/arduino/$(BUILD_ARCH)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
 
 # Step 2: Gather any 'utility' subdirectories. 
 # This stupidity brought to you by the developers of the Arduino 'IDE', and 
@@ -522,10 +586,31 @@ define run-teensy_loader_cli
     $(TEENSY_LOADER_CLI) -mmcu=$(CPU_MCU) -w $(IMAGE).hex
 endef
 
+ifdef BOARD_SUB
+	USE_1200BPS_TOUCH := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+ifndef USE_1200BPS_TOUCH
+	USE_1200BPS_TOUCH := $(shell $(SED) -n 's/$(BOARD)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+
 ifeq "$(PROGRAMMER)" "halfkay"
 define run-uploader
     $(TEENSY_LOADER_CLI) -mmcu=$(CPU_MCU) -v -w $(IMAGE).hex
 endef
+else ifeq "$(USE_1200BPS_TOUCH)" "true"
+
+ifeq "$(PLATFORM)" "Darwin"
+	STTY_ARGS := -f $(PORT) 1200
+else
+	STTY_ARGS := -F $(PORT) 1200
+endif
+
+define run-uploader
+	stty $(STTY_ARGS)
+	sleep 2
+	$(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
+endef
+
 else
 define run-uploader
     $(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
