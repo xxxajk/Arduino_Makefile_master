@@ -345,12 +345,12 @@ ifdef EXT_C_FLAGS
         EXT_C_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.menu\.usb\.serial\.build\.define[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     EXT_CPP_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.cppoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS)) $(EXT_C_FLAGS)
+    EXT_LINK_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.linkoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
     EXT_LINK_T_FLAG := $(shell $(SED) -n 's/$(BOARD)\.build\.linkscript=\(.*\)/\1/p' < $(ARD_BOARDS))
     ifdef EXT_LINK_T_FLAG
-        EXT_LINK_FLAGS += -T$(ARD_SRC_DIR)/$(EXT_LINK_T_FLAG)
+        EXT_LINK_T_FLAGS += -T$(ARD_SRC_DIR)/$(EXT_LINK_T_FLAG)
     endif
-    EXT_LINK_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.linkoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
-    EXT_LINK_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.additionalobject[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+    EXT_LIBS += $(shell $(SED) -n 's/$(BOARD)\.build\.additionalobject[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 # Add extracted variable to compiler flags.
@@ -501,7 +501,7 @@ LIB_DIRS += $(INTERNAL_LIB_DIRS)
 
 # Compiler flags.
 INC_FLAGS = \
-    $(addprefix -I,$(LIB_DIRS)) $(addprefix -I,$(INC_DIRS)) -I$(ARD_SRC_DIR)
+    -I./ $(addprefix -I,$(LIB_DIRS)) $(addprefix -I,$(INC_DIRS)) -I$(ARD_SRC_DIR)
 
 ifdef CPU
 ARD_MCP += -mcpu=$(CPU)
@@ -521,26 +521,26 @@ CXX_FLAGS = \
 
 # Build parameters.
 IMAGE = $(BUILD_DIR)/$(SKETCH)
+
+# Target sources
 ARD_C_SRC = $(wildcard $(ARD_SRC_DIR)/*.c)
 ARD_CXX_SRC = $(wildcard $(ARD_SRC_DIR)/*.cpp)
-ARD_C_OBJ = $(patsubst %.c,%.o,$(notdir $(ARD_C_SRC)))
-ARD_CXX_OBJ = $(patsubst %.cpp,%.o,$(notdir $(ARD_CXX_SRC)))
-ARD_LIB = arduino
-ARD_AR = $(BUILD_DIR)/lib$(ARD_LIB).a
-ARD_AR_OBJ = $(ARD_AR)($(ARD_C_OBJ) $(ARD_CXX_OBJ))
-ARD_LD_FLAG = -l$(ARD_LIB)
+ARD_C_OBJ = $(patsubst %.c,%.c.o,$(notdir $(ARD_C_SRC)))
+ARD_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(notdir $(ARD_CXX_SRC)))
+ARD_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(ARD_C_OBJ)))
+ARD_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(ARD_CXX_OBJ)))
+ARD_OBJS = $(BUILD_DIR)/($(ARD_C_OBJ) $(ARD_CXX_OBJ))
 
 # Sketch libraries.
 LIB_C_SRC = $(foreach ld,$(LIB_DIRS),$(wildcard $(ld)/*.c))
 LIB_CXX_SRC = $(foreach ld,$(LIB_DIRS),$(wildcard $(ld)/*.cpp))
 LIB_SRC = $(LIB_C_SRC) $(LIB_CXX_SRC)
 ifneq "$(strip $(LIB_C_SRC) $(LIB_CXX_SRC))" ""
-    LIB_C_OBJ = $(patsubst %.c,%.o,$(notdir $(LIB_C_SRC)))
-    LIB_CXX_OBJ = $(patsubst %.cpp,%.o,$(notdir $(LIB_CXX_SRC)))
-    LIB_LIB = library
-    LIB_AR = $(BUILD_DIR)/lib$(LIB_LIB).a
-    LIB_AR_OBJ = $(LIB_AR)($(LIB_C_OBJ) $(LIB_CXX_OBJ))
-    LIB_LD_FLAG = -l$(LIB_LIB)
+    LIB_C_OBJ = $(patsubst %.c,%.c.o,$(notdir $(LIB_C_SRC)))
+    LIB_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(notdir $(LIB_CXX_SRC)))
+    LIB_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(LIB_C_OBJ)))
+    LIB_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(LIB_CXX_OBJ)))
+    LIB_OBJS = $(BUILD_DIR)/($(LIB_C_OBJ) $(LIB_CXX_OBJ))
 endif
 
 # Sketch INO source.
@@ -549,26 +549,24 @@ ifneq "$(strip $(SKT_PDE_SRC))" ""
     SKT_PDE_OBJ = $(BUILD_DIR)/$(SKETCH)_ino.o
 endif
 
-
-
 # C and C++ source.
 SKT_C_SRC = $(wildcard *.c)
 SKT_CXX_SRC = $(wildcard *.cpp)
 ifneq "$(strip $(SKT_C_SRC) $(SKT_CXX_SRC))" ""
-    SKT_C_OBJ = $(patsubst %.c,%.o,$(SKT_C_SRC))
-    SKT_CXX_OBJ = $(patsubst %.cpp,%.o,$(SKT_CXX_SRC))
-    SKT_LIB = sketch
-    SKT_AR = $(BUILD_DIR)/lib$(SKT_LIB).a
-    SKT_AR_OBJ = $(SKT_AR)/($(SKT_C_OBJ) $(SKT_CXX_OBJ))
-    SKT_LD_FLAG = -l$(SKT_LIB)
+    SKT_C_OBJ = $(patsubst %.c,%.c.o,$(SKT_C_SRC))
+    SKT_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(SKT_CXX_SRC))
+    SKT_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(SKT_C_OBJ))
+    SKT_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(SKT_CXX_OBJ))
+    SKT_OBJS = $(BUILD_DIR)/($(SKT_C_OBJ) $(SKT_CXX_OBJ))
 endif
+
+
+ALL_OBJS_TO_LINK = $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS) $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS) $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS)
 
 # Common rule bodies.
 define run-cc
     $(CC) -c $(C_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
         -MD -MT '$@($%)' -MF $(@D)/.$(@F)_$*.dep $< -o $(BUILD_DIR)/$%
-    @ $(AR) rc $@ $(BUILD_DIR)/$%
-    @ $(RM) $(BUILD_DIR)/$%
     @ $(CXXFILT) < $(BUILD_DIR)/$*.lst > $(BUILD_DIR)/$*.lst.tmp
     @ $(MV) $(BUILD_DIR)/$*.lst.tmp $(BUILD_DIR)/$*.lst
 endef
@@ -576,8 +574,6 @@ endef
 define run-cxx
     $(CXX) -c $(CXX_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
         -MD -MT '$@($%)' -MF $(@D)/.$(@F)_$*.dep $< -o $(BUILD_DIR)/$%
-    @ $(AR) rc $@ $(BUILD_DIR)/$%
-    @ $(RM) $(BUILD_DIR)/$%
     @ $(CXXFILT) < $(BUILD_DIR)/$*.lst > $(BUILD_DIR)/$*.lst.tmp
     @ $(MV) $(BUILD_DIR)/$*.lst.tmp $(BUILD_DIR)/$*.lst
 endef
@@ -643,31 +639,37 @@ $(SKT_PDE_OBJ) : $(SKT_PDE_SRC)
 	    $(patsubst -I..%,-I../..%,$(INC_FLAGS)) \
 	    $(SKETCH)_ino.cpp -o $(@F)
 
-(%.o) : $(ARD_SRC_DIR)/%.c
+$(BUILD_DIR)/(%.c.o) : $(ARD_SRC_DIR)/%.c
 	$(run-cc)
 
-(%.o) : $(ARD_SRC_DIR)/%.cpp
+$(BUILD_DIR)/(%.cpp.o) : $(ARD_SRC_DIR)/%.cpp
 	$(run-cxx)
 
-(%.o) : %.c
+(%.c.o) : %.c
 	$(run-cc)
 
-(%.o) : %.cpp
+(%.cpp.o) : %.cpp
 	$(run-cxx)
 
-$(BUILD_DIR)/%.d : %.c
+$(BUILD_DIR)/%.c.d : %.c
 	$(run-cc-d)
 
-$(BUILD_DIR)/%.d : %.cpp
+$(BUILD_DIR)/%.cpp.d : %.cpp
 	$(run-cxx-d)
 
-#-Wl,--gc-sections
-#	$(AR) d $(BUILD_DIR)/lib$(LIB_LIB).a malloc.o
+$(ALL_OBJS_TO_LINK) : $(ARD_OBJS) $(LIB_OBJS) $(SKT_OBJS) $(SKT_PDE_OBJ)
 
-$(IMAGE).hex : $(ARD_AR_OBJ) $(LIB_AR_OBJ) $(SKT_AR_OBJ) $(SKT_PDE_OBJ)
-	$(CC) -Os $(GCS) $(ARD_MCP) -L$(BUILD_DIR) $(SKT_PDE_OBJ) \
-	    $(SKT_LD_FLAG) $(LIB_LD_FLAG) $(ARD_LD_FLAG) $(EXT_LINK_FLAGS)\
-            -lm -o $(IMAGE).elf
+#$(IMAGE).hex : $(ARD_OBJS) $(LIB_OBJS) $(SKT_OBJS) $(SKT_PDE_OBJ)
+$(IMAGE).hex : $(ALL_OBJS_TO_LINK)
+	$(CC) -Os \
+	    $(GCS) \
+	    $(ARD_MCP) $(EXT_LINK_FLAGS) \
+	    $(EXT_LINK_T_FLAGS) -o $(IMAGE).elf \
+	    $(SKT_PDE_OBJ) \
+	    -L$(BUILD_DIR) \
+	    $(ALL_OBJS_TO_LINK) \
+	    $(EXT_LIBS) -lm 
+	#	    $(SKT_LD_FLAG) $(LIB_LD_FLAG) $(ARD_LD_FLAG)
 	$(OBJCOPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load \
 	    --no-change-warnings --change-section-lma .eeprom=0 $(IMAGE).elf \
 	    $(IMAGE).eep
@@ -683,9 +685,6 @@ $(IMAGE).hex : $(ARD_AR_OBJ) $(LIB_AR_OBJ) $(SKT_AR_OBJ) $(SKT_PDE_OBJ)
 upload : all
 	$(kill-monitor)
 	$(run-uploader)
-
-#	$(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) \
-#	    -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
 
 monitor :
 	$(kill-monitor)
