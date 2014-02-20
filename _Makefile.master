@@ -561,19 +561,20 @@ ifneq "$(strip $(SKT_C_SRC) $(SKT_CXX_SRC))" ""
 endif
 
 
-ALL_OBJS_TO_LINK = $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS) $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS) $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS)
+ALL_OBJS_TO_LINK = $(sort $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS) $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS) $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS))
 
 # Common rule bodies.
+# -MF $(@D).$(@F)_$*.dep 
 define run-cc
     $(CC) -c $(C_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
-        -MD -MT '$@($%)' -MF $(@D)/.$(@F)_$*.dep $< -o $(BUILD_DIR)/$%
+        -MD -MT '$@($%)' $< -o $(BUILD_DIR)/$%
     @ $(CXXFILT) < $(BUILD_DIR)/$*.lst > $(BUILD_DIR)/$*.lst.tmp
     @ $(MV) $(BUILD_DIR)/$*.lst.tmp $(BUILD_DIR)/$*.lst
 endef
 
 define run-cxx
     $(CXX) -c $(CXX_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
-        -MD -MT '$@($%)' -MF $(@D)/.$(@F)_$*.dep $< -o $(BUILD_DIR)/$%
+        -MD -MT '$@($%)' $< -o $(BUILD_DIR)/$%
     @ $(CXXFILT) < $(BUILD_DIR)/$*.lst > $(BUILD_DIR)/$*.lst.tmp
     @ $(MV) $(BUILD_DIR)/$*.lst.tmp $(BUILD_DIR)/$*.lst
 endef
@@ -622,6 +623,7 @@ endif
 
 all : $(BUILD_DIR) $(IMAGE).hex
 
+
 clean :
 	$(RM) $(BUILD_DIR)
 	$(RM) *~ *.bak *.BAK *.Bak *.orig
@@ -651,11 +653,11 @@ $(BUILD_DIR)/(%.cpp.o) : $(ARD_SRC_DIR)/%.cpp
 (%.cpp.o) : %.cpp
 	$(run-cxx)
 
-$(BUILD_DIR)/%.c.d : %.c
-	$(run-cc-d)
-
-$(BUILD_DIR)/%.cpp.d : %.cpp
-	$(run-cxx-d)
+#$(BUILD_DIR)/%.c.d : %.c
+#	$(run-cc-d)
+#
+#$(BUILD_DIR)/%.cpp.d : %.cpp
+#	$(run-cxx-d)
 
 $(ALL_OBJS_TO_LINK) : $(ARD_OBJS) $(LIB_OBJS) $(SKT_OBJS) $(SKT_PDE_OBJ)
 
@@ -694,4 +696,5 @@ upload_monitor : upload monitor
 
 upmonitor: upload_monitor
 
--include $(wildcard $(BUILD_DIR)/.*.dep))
+# include deps
+-include $(wildcard $(BUILD_DIR)/*.d))
