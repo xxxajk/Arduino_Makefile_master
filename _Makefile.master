@@ -529,6 +529,7 @@ ARD_C_OBJ = $(patsubst %.c,%.c.o,$(notdir $(ARD_C_SRC)))
 ARD_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(notdir $(ARD_CXX_SRC)))
 ARD_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(ARD_C_OBJ)))
 ARD_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(ARD_CXX_OBJ)))
+ALL_CORE_OBJS = $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS)
 ARD_OBJS = $(BUILD_DIR)/($(ARD_C_OBJ) $(ARD_CXX_OBJ))
 
 # Sketch libraries.
@@ -540,6 +541,7 @@ ifneq "$(strip $(LIB_C_SRC) $(LIB_CXX_SRC))" ""
     LIB_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(notdir $(LIB_CXX_SRC)))
     LIB_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(LIB_C_OBJ)))
     LIB_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(LIB_CXX_OBJ)))
+    ALL_LIB_OBJS = $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS)
     LIB_OBJS = $(BUILD_DIR)/($(LIB_C_OBJ) $(LIB_CXX_OBJ))
 endif
 
@@ -561,7 +563,6 @@ ifneq "$(strip $(SKT_C_SRC) $(SKT_CXX_SRC))" ""
 endif
 
 
-ALL_OBJS_TO_LINK = $(sort $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS) $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS) $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS))
 
 # Common rule bodies.
 # -MF $(@D).$(@F)_$*.dep 
@@ -635,11 +636,11 @@ $(BUILD_DIR) :
 	$(MKDIR) $@
 
 $(SKT_PDE_OBJ) : $(SKT_PDE_SRC)
-	cat $(SKT_PDE_SRC) > $(BUILD_DIR)/$(SKETCH)_ino.cpp
+	cat $(SKT_PDE_SRC) > $(BUILD_DIR)/$(SKETCH).ino.cpp
 	cd $(BUILD_DIR) && $(CXX) -c $(subst build/,,$(CXX_FLAGS)) \
 	    $(OPT_FLAGS) $(ARD_FLAGS) -I.. \
 	    $(patsubst -I..%,-I../..%,$(INC_FLAGS)) \
-	    $(SKETCH)_ino.cpp -o $(@F)
+	    $(SKETCH).ino.cpp -o $(@F)
 
 $(BUILD_DIR)/(%.c.o) : $(ARD_SRC_DIR)/%.c
 	$(run-cc)
@@ -659,25 +660,42 @@ $(BUILD_DIR)/(%.cpp.o) : $(ARD_SRC_DIR)/%.cpp
 #$(BUILD_DIR)/%.cpp.d : %.cpp
 #	$(run-cxx-d)
 
-$(ALL_OBJS_TO_LINK) : $(ARD_OBJS) $(LIB_OBJS) $(SKT_OBJS) $(SKT_PDE_OBJ)
+# ARD_C_SRC = $(wildcard $(ARD_SRC_DIR)/*.c)
+# ARD_CXX_SRC = $(wildcard $(ARD_SRC_DIR)/*.cpp)
+#$(ALL_OBJS_TO_BUILD) : $(LIB_OBJS) $(SKT_OBJS) $(SKT_PDE_OBJ)
 
-#$(IMAGE).hex : $(ARD_OBJS) $(LIB_OBJS) $(SKT_OBJS) $(SKT_PDE_OBJ)
-$(IMAGE).hex : $(ALL_OBJS_TO_LINK)
+#ALL_CORE_OBJS = $(sort $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS))
+#ALL_LINK_OBJS = $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS) $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS)
+
+build/core.a: $(ARD_OBJS)
+	$(AR) rcs build/libAcore.a $(ALL_CORE_OBJS)
+
+build/user.a: $(LIB_OBJS)
+	$(AR) rcs build/libAuser.a $(ALL_LIB_OBJS)
+#
+#
+#
+#ALL_OBJS_TO_BUILD = $(sort $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS) $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS) $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS))
+
+$(IMAGE).hex : $(SKT_PDE_OBJ) build/core.a build/user.a $(ALL_OBJS_TO_BUILD)
+
 	$(CC) -Os \
 	    $(GCS) \
 	    $(ARD_MCP) $(EXT_LINK_FLAGS) \
 	    $(EXT_LINK_T_FLAGS) -o $(IMAGE).elf \
 	    $(SKT_PDE_OBJ) \
+            $(SKT_OBJS) \
 	    -L$(BUILD_DIR) \
-	    $(ALL_OBJS_TO_LINK) \
-	    $(EXT_LIBS) -lm 
-	#	    $(SKT_LD_FLAG) $(LIB_LD_FLAG) $(ARD_LD_FLAG)
+	    -lAcore -lAuser $(EXT_LIBS) -lm 
 	$(OBJCOPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load \
 	    --no-change-warnings --change-section-lma .eeprom=0 $(IMAGE).elf \
 	    $(IMAGE).eep
 	$(OBJCOPY) -O ihex -R .eeprom $(IMAGE).elf $(IMAGE).hex
 	$(OBJDUMP) -h -S $(IMAGE).elf | $(CXXFILT) -t > $(IMAGE).lst
 	$(SIZE) $(IMAGE).elf
+
+#            build/user.a \
+#            build/core.a \
 
 #
 # This only works on the avr, sorry
