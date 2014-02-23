@@ -93,6 +93,10 @@ DIRNAME ?= dirname
 SED ?= sed
 GREP ?= grep
 WHICH ?= which
+CP ?= cp
+CUT ?= cut
+HEAD ?= head
+TR ?= tr
 
 # Check for the required definitions.
 ifndef BOARD
@@ -129,7 +133,7 @@ endif
 
 # Read revision from revisions.txt.
 ifndef ARD_REV
-    VERSION = $(shell $(SED) -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | cut -d " " -f1 | head -1) # Extract version number - it is in the following format: ARDUINO x.x.x
+    VERSION = $(shell $(SED) -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | $(CUT) -d " " -f1 | $(HEAD) -1) # Extract version number - it is in the following format: ARDUINO x.x.x
     ARD_REV = $(subst .,,$(VERSION)) # Remove punctuation marks
 endif
 
@@ -296,7 +300,7 @@ ifndef MCU
             MCU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
             F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
             ifndef F_CPU
-                F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | head --lines=1)
+                F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) --lines=1)
             endif
             UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
             BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
@@ -312,7 +316,7 @@ ifndef MCU
             F_CPU := $(shell $(SED) -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
         endif
         ifndef F_CPU
-            F_CPU := $(shell $(SED) -n 's/$(BOARD)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | head --lines=1)
+            F_CPU := $(shell $(SED) -n 's/$(BOARD)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) --lines=1)
         endif
         ifndef UPLOAD_SPEED
             UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
@@ -442,9 +446,7 @@ ifndef BUILD_ARCH
     BUILD_ARCH = avr
 endif
 
-ifdef BUILD_ARCH
-	EXTRA_FLAGS += -DARDUINO_ARCH_$(shell echo $(BUILD_ARCH) | tr a-z A-Z)
-endif
+EXTRA_FLAGS += -DARDUINO_ARCH_$(shell echo $(BUILD_ARCH) | $(TR) a-z A-Z)
 
 ifeq "$(BUILD_ARCH)" "arm-none-eabi"
     USED_BIN = $(ARM_BIN)
@@ -530,7 +532,7 @@ ARD_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(notdir $(ARD_CXX_SRC)))
 ARD_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(ARD_C_OBJ)))
 ARD_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(ARD_CXX_OBJ)))
 ALL_CORE_OBJS = $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS)
-ARD_OBJS = $(BUILD_DIR)/($(ARD_C_OBJ) $(ARD_CXX_OBJ))
+#ARD_OBJS = $(BUILD_DIR)/($(ARD_C_OBJ) $(ARD_CXX_OBJ))
 
 # Sketch libraries.
 LIB_C_SRC = $(foreach ld,$(LIB_DIRS),$(wildcard $(ld)/*.c))
@@ -542,7 +544,6 @@ ifneq "$(strip $(LIB_C_SRC) $(LIB_CXX_SRC))" ""
     LIB_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(LIB_C_OBJ)))
     LIB_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(LIB_CXX_OBJ)))
     ALL_LIB_OBJS = $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS)
-    LIB_OBJS = $(BUILD_DIR)/($(LIB_C_OBJ) $(LIB_CXX_OBJ))
 endif
 
 # Sketch INO source.
@@ -559,33 +560,42 @@ ifneq "$(strip $(SKT_C_SRC) $(SKT_CXX_SRC))" ""
     SKT_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(SKT_CXX_SRC))
     SKT_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(SKT_C_OBJ))
     SKT_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(SKT_CXX_OBJ))
-    SKT_OBJS = $(BUILD_DIR)/($(SKT_C_OBJ) $(SKT_CXX_OBJ))
+    SKT_LINK_OBJS = $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS)
 endif
 
-
-
 # Common rule bodies.
-# -MF $(@D).$(@F)_$*.dep 
+
+ifeq "$(BUILD_ARCH)" "avr"
+define show_burn_info
+    $(SIZE) -A $(IMAGE).elf
+    $(SIZE) -B $(IMAGE).elf
+    $(SIZE) -C --mcu=$(MCU) $(IMAGE).elf
+endef
+else
+define show_burn_info
+    $(SIZE) -A $(IMAGE).elf
+    $(SIZE) -B $(IMAGE).elf
+endef
+endif
+
 define run-cc
     $(CC) -c $(C_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
-        -MD -MT '$@($%)' $< -o $(BUILD_DIR)/$%
-    @ $(CXXFILT) < $(BUILD_DIR)/$*.lst > $(BUILD_DIR)/$*.lst.tmp
-    @ $(MV) $(BUILD_DIR)/$*.lst.tmp $(BUILD_DIR)/$*.lst
+        -MMD $< -o $(BUILD_DIR)/$(@F)
+    @$(CXXFILT) < $(BUILD_DIR)/$*.lst > $(BUILD_DIR)/$*.lst.tmp
+    @$(MV) $(BUILD_DIR)/$*.lst.tmp $(BUILD_DIR)/$*.lst
+    @$(CP) $(BUILD_DIR)/$*.c.d $(BUILD_DIR)/$*.c.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(BUILD_DIR)/$*.c.P >> $(BUILD_DIR)/$*.c.d
+    @$(RM) -f $(BUILD_DIR)/$*.c.P
 endef
 
 define run-cxx
     $(CXX) -c $(CXX_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
-        -MD -MT '$@($%)' $< -o $(BUILD_DIR)/$%
-    @ $(CXXFILT) < $(BUILD_DIR)/$*.lst > $(BUILD_DIR)/$*.lst.tmp
-    @ $(MV) $(BUILD_DIR)/$*.lst.tmp $(BUILD_DIR)/$*.lst
-endef
-
-define run-avrdude
-    $(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
-endef
-
-define run-teensy_loader_cli
-    $(TEENSY_LOADER_CLI) -mmcu=$(CPU_MCU) -w $(IMAGE).hex
+        -MMD $< -o $(BUILD_DIR)/$(@F)
+    @$(CXXFILT) < $(BUILD_DIR)/$*.lst > $(BUILD_DIR)/$*.lst.tmp
+    @$(MV) $(BUILD_DIR)/$*.lst.tmp $(BUILD_DIR)/$*.lst
+    @$(CP) $(BUILD_DIR)/$*.cpp.d $(BUILD_DIR)/$*.cpp.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(BUILD_DIR)/$*.cpp.P >> $(BUILD_DIR)/$*.cpp.d
+    @$(RM) -f $(BUILD_DIR)/$*.cpp.P
 endef
 
 ifdef BOARD_SUB
@@ -620,71 +630,62 @@ endef
 endif
 
 # Rules.
-.PHONY : all clean upload monitor upload_monitor upmonitor
+.PHONY: all clean upload monitor upload_monitor upmonitor
 
-all : $(BUILD_DIR) $(IMAGE).hex
+all: $(BUILD_DIR) $(IMAGE).hex
 
 
-clean :
+clean:
 	$(RM) $(BUILD_DIR)
 	$(RM) *~ *.bak *.BAK *.Bak *.orig
 	$(RM) */*~ */*.bak */*.BAK */*.Bak */*.orig
 	$(RM) */*/*~ */*/*.bak */*/*.BAK */*/*.Bak */*/*.orig
 	sync
 
-$(BUILD_DIR) :
+$(BUILD_DIR):
 	$(MKDIR) $@
 
-$(SKT_PDE_OBJ) : $(SKT_PDE_SRC)
+$(SKT_PDE_OBJ): $(SKT_PDE_SRC)
 	cat $(SKT_PDE_SRC) > $(BUILD_DIR)/$(SKETCH).ino.cpp
 	cd $(BUILD_DIR) && $(CXX) -c $(subst build/,,$(CXX_FLAGS)) \
 	    $(OPT_FLAGS) $(ARD_FLAGS) -I.. \
 	    $(patsubst -I..%,-I../..%,$(INC_FLAGS)) \
 	    $(SKETCH).ino.cpp -o $(@F)
 
-$(BUILD_DIR)/(%.c.o) : $(ARD_SRC_DIR)/%.c
+$(BUILD_DIR)/%.c.o: $(ARD_SRC_DIR)/%.c
 	$(run-cc)
 
-$(BUILD_DIR)/(%.cpp.o) : $(ARD_SRC_DIR)/%.cpp
+$(BUILD_DIR)/%.cpp.o: $(ARD_SRC_DIR)/%.cpp
 	$(run-cxx)
 
-(%.c.o) : %.c
+$(BUILD_DIR)/%.c.o: %.c
 	$(run-cc)
 
-(%.cpp.o) : %.cpp
+$(BUILD_DIR)/%.cpp.o: %.cpp
 	$(run-cxx)
 
-#$(BUILD_DIR)/%.c.d : %.c
-#	$(run-cc-d)
 #
-#$(BUILD_DIR)/%.cpp.d : %.cpp
-#	$(run-cxx-d)
-
-# ARD_C_SRC = $(wildcard $(ARD_SRC_DIR)/*.c)
-# ARD_CXX_SRC = $(wildcard $(ARD_SRC_DIR)/*.cpp)
-#$(ALL_OBJS_TO_BUILD) : $(LIB_OBJS) $(SKT_OBJS) $(SKT_PDE_OBJ)
-
-#ALL_CORE_OBJS = $(sort $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS))
-#ALL_LINK_OBJS = $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS) $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS)
-
-build/core.a: $(ARD_OBJS)
+# TO-DO: Compile core once and cache it someplace, using defines as part of the name
+#
+build/libAcore.a: $(ALL_CORE_OBJS)
 	$(AR) rcs build/libAcore.a $(ALL_CORE_OBJS)
 
-build/user.a: $(LIB_OBJS)
+#
+# TO-DO: Compile libraries separately, once, cahche them, and use defines as part of the name
+#
+build/libAuser.a: $(ALL_LIB_OBJS)
 	$(AR) rcs build/libAuser.a $(ALL_LIB_OBJS)
-#
-#
-#
-#ALL_OBJS_TO_BUILD = $(sort $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS) $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS) $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS))
 
-$(IMAGE).hex : $(SKT_PDE_OBJ) build/core.a build/user.a $(ALL_OBJS_TO_BUILD)
-
+#
+# TO-DO: Check if this file or Makefile has changed, and if so, run clean, and re-compile everything
+#
+$(IMAGE).hex: $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) build/libAcore.a build/libAuser.a
 	$(CC) -Os \
 	    $(GCS) \
 	    $(ARD_MCP) $(EXT_LINK_FLAGS) \
 	    $(EXT_LINK_T_FLAGS) -o $(IMAGE).elf \
 	    $(SKT_PDE_OBJ) \
-            $(SKT_OBJS) \
+            $(SKT_LINK_OBJS) \
 	    -L$(BUILD_DIR) \
 	    -lAcore -lAuser $(EXT_LIBS) -lm 
 	$(OBJCOPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load \
@@ -692,27 +693,22 @@ $(IMAGE).hex : $(SKT_PDE_OBJ) build/core.a build/user.a $(ALL_OBJS_TO_BUILD)
 	    $(IMAGE).eep
 	$(OBJCOPY) -O ihex -R .eeprom $(IMAGE).elf $(IMAGE).hex
 	$(OBJDUMP) -h -S $(IMAGE).elf | $(CXXFILT) -t > $(IMAGE).lst
-	$(SIZE) $(IMAGE).elf
+	$(show_burn_info)
 
-#            build/user.a \
-#            build/core.a \
 
-#
-# This only works on the avr, sorry
-#	$(SIZE) -C --mcu=$(MCU) $(IMAGE).elf
-#
-
-upload : all
+upload: all
 	$(kill-monitor)
 	$(run-uploader)
 
-monitor :
+monitor:
 	$(kill-monitor)
 	$(run-monitor)
 
-upload_monitor : upload monitor
+upload_monitor: upload monitor
 
 upmonitor: upload_monitor
+
+upmon: upmonitor
 
 # include deps
 -include $(wildcard $(BUILD_DIR)/*.d))
