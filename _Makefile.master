@@ -470,6 +470,21 @@ OBJDUMP = $(USED_BIN)/$(USED_TARGET)-objdump
 AR = $(USED_BIN)/$(USED_TARGET)-ar
 SIZE = $(USED_BIN)/$(USED_TARGET)-size
 NM = $(USED_BIN)/$(USED_TARGET)-nm
+LD = $(USED_BIN)/$(USED_TARGET)-ld
+
+
+ifeq "$(BUILD_ARCH)" "arm-none-eabi"
+CHECK_VER = $(shell $(LD) -v | sed -ne 's/[^0-9]*\\(\\([0-9]\\.\\)\\{0,4\}[0-9][^.]\\).*/\\1/p')
+CHECK_VER_MAJ = $(shell echo $(CHECK_VER) | sed -ne 's/\\(^.*\\)\\..*/\\1/p')
+CHECK_VER_MIN = $(shell echo $(CHECK_VER) | sed -ne 's/^.*\\.\\(.*\\)/\\1/p')
+COMPARED_MAJ = $(shell if [ $CHECK_VER_MAJ \\< 3 ]; then echo '1' ; fi')
+ifeq "$(CHECK_VER_MAJ)" "1"
+COMPARED_MIN = $(shell if [ $CHECK_VER_MIN \\< 24 ]; then echo '1' ; fi')
+ifeq "$(COMPARED_MIN)" "1"
+$(error arm-none-eabi binutils are too old. Please upgrade to 2.24 or better.)
+endif
+endif
+endif
 
 ifndef LIB_DIRS
 
@@ -687,7 +702,7 @@ $(IMAGE).hex: $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) build/libAcore.a build/libAuser.a
 	    $(SKT_PDE_OBJ) \
             $(SKT_LINK_OBJS) \
 	    -L$(BUILD_DIR) \
-	    -lAcore -lAuser $(EXT_LIBS) -lm 
+	    -lAuser -lAcore $(EXT_LIBS) -lm 
 	$(OBJCOPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load \
 	    --no-change-warnings --change-section-lma .eeprom=0 $(IMAGE).elf \
 	    $(IMAGE).eep
