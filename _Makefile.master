@@ -667,6 +667,7 @@ $(SKT_PDE_OBJ): $(SKT_PDE_SRC)
 	    $(patsubst -I..%,-I../..%,$(INC_FLAGS)) \
 	    $(SKETCH).ino.cpp -o $(@F)
 
+
 $(BUILD_DIR)/%.c.o: $(ARD_SRC_DIR)/%.c
 	$(run-cc)
 
@@ -679,30 +680,70 @@ $(BUILD_DIR)/%.c.o: %.c
 $(BUILD_DIR)/%.cpp.o: %.cpp
 	$(run-cxx)
 
+
 #
 # TO-DO: Compile core once and cache it someplace, using defines as part of the name
 #
 build/libAcore.a: $(ALL_CORE_OBJS)
-	$(AR) rcs build/libAcore.a $(ALL_CORE_OBJS)
+	$(AR) rcs $@ $?
 
 #
 # TO-DO: Compile libraries separately, once, cahche them, and use defines as part of the name
 #
 build/libAuser.a: $(ALL_LIB_OBJS)
-	$(AR) rcs build/libAuser.a $(ALL_LIB_OBJS)
+	$(AR) rcs $@ $?
+
+############################################################################
+############################################################################
+############################################################################
+
+ifeq "$(BUILD_ARCH)" "arm-none-eabi"
+#
+# Everything checks out OK.
+# This really belongs in a CRT section, but, is not.
+# Fact of the matter is that you should not have to rebuild it for
+# each compile, but instead have 2 crt files.
+# One for the 128, and one for the 256...
+# So I have to add special rule, so compiles work.
+#
+# As a sideeffect, simple sketch sizes go from 70KB down to 17KB.
+# This is about a 24.29% savings in flash space, and more room
+# for actual code, not stale cruft that ld doesn't GC, because 
+# ld can't  GC something it is told to link in explictly.
+#
+# Hopefully Paul will fix this one day...
+#
+$(BUILD_DIR)/crtk20.o: $(BUILD_DIR)/mk20dx128.c.o
+	$(CP) $(BUILD_DIR)/mk20dx128.c.o $(BUILD_DIR)/crtk20.o
+
+#
+# Add it to the deps.
+#
+EXT_LINK_EXTRA = $(BUILD_DIR)/crtk20.o
+endif
+
+############################################################################
+############################################################################
+############################################################################
+
 
 #
 # TO-DO: Check if this file or Makefile has changed, and if so, run clean, and re-compile everything
 #
-$(IMAGE).hex: $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) build/libAcore.a build/libAuser.a
+$(IMAGE).hex: $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) build/libAcore.a build/libAuser.a $(EXT_LINK_EXTRA)
 	$(CC) -Os \
 	    $(GCS) \
 	    $(ARD_MCP) $(EXT_LINK_FLAGS) \
-	    $(EXT_LINK_T_FLAGS) -o $(IMAGE).elf \
+	    $(EXT_LINK_T_FLAGS) \
+	    $(EXT_LINK_EXTRA) \
 	    $(SKT_PDE_OBJ) \
             $(SKT_LINK_OBJS) \
 	    -L$(BUILD_DIR) \
-	    -lAuser -lAcore $(EXT_LIBS) -lm 
+	    -lAuser \
+	    -lAcore \
+	    $(EXT_LIBS) \
+	    -lm \
+	    -o $(IMAGE).elf 
 	$(OBJCOPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load \
 	    --no-change-warnings --change-section-lma .eeprom=0 $(IMAGE).elf \
 	    $(IMAGE).eep
