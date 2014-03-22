@@ -498,7 +498,12 @@ ifndef LIB_DIRS
 # TO-DO: Scan Arduino libraries for interdependence?
 
 # Step 1: Gather the primary directories
-PRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
+
+ifdef THIRD_PARTY_HARDWARE
+	PRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(THIRD_PARTY_HARDWARE)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
+endif
+
+PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
 PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
 PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(ARD_HOME)/hardware/arduino/$(BUILD_ARCH)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
 
@@ -507,8 +512,11 @@ PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -n
 # by the library developers that don't know how to use include properly.
 UTLLIB_DIRS=$(shell for i in $(PRILIB_DIRS) ; { $(FIND) $$i -name 'utility' -print ; } )
 
+# Gather all arch subdirectories as well
+ARCH_DIRS=$(shell for i in $(PRILIB_DIRS) ; { $(FIND) $$i -name $(BUILD_ARCH) -print ; } )
+
 # Step 3: Combine everything
-LIB_DIRS = $(PRILIB_DIRS) $(UTLLIB_DIRS)
+LIB_DIRS = $(PRILIB_DIRS) $(UTLLIB_DIRS) $(ARCH_DIRS)
 
 endif
 
