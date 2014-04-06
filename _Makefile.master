@@ -133,7 +133,7 @@ endif
 
 # Read revision from revisions.txt.
 ifndef ARD_REV
-    VERSION = $(shell $(SED) -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | $(CUT) -d " " -f1 | $(HEAD) -1 | $(CUT) -d "-" -f1) # Extract version number - it is in the following format: ARDUINO x.x.x
+    VERSION = $(shell $(SED) -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | $(CUT) -d " " -f1 | $(HEAD) -n 1 | $(CUT) -d "-" -f1) # Extract version number - it is in the following format: ARDUINO x.x.x
     ARD_REV = $(subst .,,$(VERSION)) # Remove punctuation marks
 endif
 
@@ -300,7 +300,7 @@ ifndef MCU
             MCU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
             F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
             ifndef F_CPU
-                F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) --lines=1)
+                F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) -n 1)
             endif
             UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
             BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
@@ -316,7 +316,7 @@ ifndef MCU
             F_CPU := $(shell $(SED) -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
         endif
         ifndef F_CPU
-            F_CPU := $(shell $(SED) -n 's/$(BOARD)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) --lines=1)
+            F_CPU := $(shell $(SED) -n 's/$(BOARD)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) -n 1)
         endif
         ifndef UPLOAD_SPEED
             UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
