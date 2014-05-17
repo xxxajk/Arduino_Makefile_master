@@ -167,10 +167,10 @@ ifdef THIRD_PARTY_HARDWARE # Check if a third party hardware add-on is used.
     ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
 
     ifdef BOARD_SUB
-        CORE := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+        CORE := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     ifndef CORE
-        CORE = $(shell $(SED) -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+        CORE = $(shell $(SED) -n 's/^$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
 
     ifeq "$(CORE)" "arduino:arduino" # Check if it is using the standard Arduino core - supported since 1.5.x
@@ -180,10 +180,10 @@ ifdef THIRD_PARTY_HARDWARE # Check if a third party hardware add-on is used.
     endif
 
     ifdef BOARD_SUB
-        VARIANT := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+        VARIANT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     ifndef VARIANT
-        VARIANT = $(shell $(SED) -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+        VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     ifndef VARIANT
         $(error Unknown board '$(BOARD)')
@@ -198,10 +198,10 @@ ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/avr/boards.txt),)
     ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
 
     ifdef BOARD_SUB
-        VARIANT := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+        VARIANT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     ifndef VARIANT
-        VARIANT = $(shell $(SED) -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+        VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     ifndef VARIANT
         $(error Unknown board '$(BOARD)')
@@ -212,7 +212,7 @@ else ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/boards.txt),)
     TEENSY_BOARDS = $(ARD_HOME)/hardware/teensy/boards.txt
     TEENSY_BASE = $(ARD_HOME)/hardware/teensy/cores/
     ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/cores/arduino
-    VARIANT = $(shell $(SED) -n 's/$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+    VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     ifndef VARIANT
         $(error Unknown board '$(BOARD)')
     endif
@@ -262,28 +262,28 @@ VPATH = $(LIB_DIRS)
 
 # Macros derived from boards.txt.
 ifdef BOARD_SUB
-    MCU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
-    F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-    UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
-    BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
-    BOARD_EXTRA_FLAGS := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
+    MCU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+    F_CPU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+    UPLOAD_SPEED := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BUILD_BOARD := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BOARD_EXTRA_FLAGS := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 # Check if the board is part of a sub menu.
 ifndef MCU
-    MCU := $(shell $(SED) -n 's/$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+    MCU := $(shell $(SED) -n 's/^$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef F_CPU
-    F_CPU := $(shell $(SED) -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+    F_CPU := $(shell $(SED) -n 's/^$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef UPLOAD_SPEED
-    UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+    UPLOAD_SPEED := $(shell $(SED) -n 's/^$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef BUILD_BOARD
-    BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BUILD_BOARD := $(shell $(SED) -n 's/^$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef BOARD_EXTRA_FLAGS
-    BOARD_EXTRA_FLAGS := $(shell $(SED) -n 's/$(BOARD)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BOARD_EXTRA_FLAGS := $(shell $(SED) -n 's/^$(BOARD)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 
@@ -293,36 +293,36 @@ ifndef MCU
         USB_BUILD_DEFINE ?= USB_SERIAL # Can be set to the following: USB_SERIAL, USB_HID, USB_SERIAL_HID, USB_DISK, USB_DISK_SDFLASH, USB_MIDI, USB_RAWHID or USB_FLIGHTSIM
         USE_LAYOUT := LAYOUT_US_ENGLISH
         ARD_BOARDS = $(TEENSY_BOARDS)
-        BUILD_CORE = $(shell $(SED) -n 's/$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
+        BUILD_CORE = $(shell $(SED) -n 's/^$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
         ARD_SRC_DIR = $(TEENSY_BASE)$(BUILD_CORE)
         ifdef BOARD_SUB
-            CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-            MCU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
-            F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+            CPU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+            MCU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+            F_CPU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
             ifndef F_CPU
-                F_CPU := $(shell $(SED) -n 's/$(BOARD_SUB)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) -n 1)
+                F_CPU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) -n 1)
             endif
-            UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
-            BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+            UPLOAD_SPEED := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+            BUILD_BOARD := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
         endif
         # Check if the board is part of a sub menu.
         ifndef CPU
-            CPU := $(shell $(SED) -n 's/$(BOARD)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+            CPU := $(shell $(SED) -n 's/^$(BOARD)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
         endif
         ifndef MCU
-            MCU := $(shell $(SED) -n 's/$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+            MCU := $(shell $(SED) -n 's/^$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
         endif
         ifndef F_CPU
-            F_CPU := $(shell $(SED) -n 's/$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+            F_CPU := $(shell $(SED) -n 's/^$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
         endif
         ifndef F_CPU
-            F_CPU := $(shell $(SED) -n 's/$(BOARD)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) -n 1)
+            F_CPU := $(shell $(SED) -n 's/^$(BOARD)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) -n 1)
         endif
         ifndef UPLOAD_SPEED
-            UPLOAD_SPEED := $(shell $(SED) -n 's/$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+            UPLOAD_SPEED := $(shell $(SED) -n 's/^$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
         endif
         ifndef BUILD_BOARD
-            BUILD_BOARD := $(shell $(SED) -n 's/$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+            BUILD_BOARD := $(shell $(SED) -n 's/^$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
         endif
     endif
 endif
@@ -343,18 +343,18 @@ CPU_MCU = $(MCU)
 #
 #
 
-EXT_C_FLAGS := $(shell $(SED) -n 's/$(BOARD)\.build\.option[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+EXT_C_FLAGS := $(shell $(SED) -n 's/^$(BOARD)\.build\.option[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
 ifdef EXT_C_FLAGS
     ifndef USB_BUILD_DEFINE
-        EXT_C_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.menu\.usb\.serial\.build\.define[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+        EXT_C_FLAGS += $(shell $(SED) -n 's/^$(BOARD)\.menu\.usb\.serial\.build\.define[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
-    EXT_CPP_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.cppoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS)) $(EXT_C_FLAGS)
-    EXT_LINK_FLAGS += $(shell $(SED) -n 's/$(BOARD)\.build\.linkoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
-    EXT_LINK_T_FLAG := $(shell $(SED) -n 's/$(BOARD)\.build\.linkscript=\(.*\)/\1/p' < $(ARD_BOARDS))
+    EXT_CPP_FLAGS += $(shell $(SED) -n 's/^$(BOARD)\.build\.cppoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS)) $(EXT_C_FLAGS)
+    EXT_LINK_FLAGS += $(shell $(SED) -n 's/^$(BOARD)\.build\.linkoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+    EXT_LINK_T_FLAG := $(shell $(SED) -n 's/^$(BOARD)\.build\.linkscript=\(.*\)/\1/p' < $(ARD_BOARDS))
     ifdef EXT_LINK_T_FLAG
         EXT_LINK_T_FLAGS += -T$(ARD_SRC_DIR)/$(EXT_LINK_T_FLAG)
     endif
-    EXT_LIBS += $(shell $(SED) -n 's/$(BOARD)\.build\.additionalobject[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+    EXT_LIBS += $(shell $(SED) -n 's/^$(BOARD)\.build\.additionalobject[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 # Add extracted variable to compiler flags.
@@ -372,22 +372,22 @@ endif
 
 ifdef BOARD_EXTRA_FLAGS
 	ifdef BOARD_SUB
-		USB_VID := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
-		USB_PID := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
-		USB_MANUFACTURER := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
-		USB_PRODUCT := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_VID := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_PID := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_MANUFACTURER := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_PRODUCT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
 	endif
 	ifndef USB_VID
-		USB_VID := $(shell $(SED) -n 's/$(BOARD)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_VID := $(shell $(SED) -n 's/^$(BOARD)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
 	endif
 	ifndef USB_PID
-		USB_PID := $(shell $(SED) -n 's/$(BOARD)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_PID := $(shell $(SED) -n 's/^$(BOARD)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
 	endif
 	ifndef USB_MANUFACTURER
-		USB_MANUFACTURER := $(shell $(SED) -n 's/$(BOARD)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_MANUFACTURER := $(shell $(SED) -n 's/^$(BOARD)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
 	endif
 	ifndef USB_PRODUCT
-		USB_PRODUCT := $(shell $(SED) -n 's/$(BOARD)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
+		USB_PRODUCT := $(shell $(SED) -n 's/^$(BOARD)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
 	endif
 
 	ifdef USB_VID
@@ -411,10 +411,10 @@ endif
 # Read programmer type from boards.txt.
 ifndef PROGRAMMER
     ifdef BOARD_SUB
-        PROGRAMMER := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+        PROGRAMMER := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     ifndef PROGRAMMER
-        PROGRAMMER := $(shell $(SED) -n 's/$(BOARD)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+        PROGRAMMER := $(shell $(SED) -n 's/^$(BOARD)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
     ifndef PROGRAMMER
         PROGRAMMER = arduino # Defaults to arduino upload protocol
@@ -425,19 +425,19 @@ endif
 
 # Arduino architecture:
 ifdef BOARD_SUB
-    BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef BUILD_ARCH
-    BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS))
+    BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 # Teensy architecture:
 ifndef BUILD_ARCH
 	ifdef BOARD_SUB
-    	BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
 	endif
 	ifndef BUILD_ARCH
-    	BUILD_ARCH := $(shell $(SED) -n 's/$(BOARD)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+    	BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
 	endif
 endif
 
@@ -622,10 +622,10 @@ define run-cxx
 endef
 
 ifdef BOARD_SUB
-	USE_1200BPS_TOUCH := $(shell $(SED) -n 's/$(BOARD_SUB)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
+	USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 ifndef USE_1200BPS_TOUCH
-	USE_1200BPS_TOUCH := $(shell $(SED) -n 's/$(BOARD)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
+	USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 ifeq "$(PROGRAMMER)" "halfkay"
