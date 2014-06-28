@@ -123,6 +123,8 @@ endif
 # Make if easier for Mac users, so they only have to define the path to the application.
 ifneq ($(wildcard $(ARD_HOME)/Contents/Resources/Java/hardware/tools/avr/bin/avrdude),)
     ARD_HOME := $(ARD_HOME)/Contents/Resources/Java
+else ifneq ($(wildcard $(ARD_HOME)/Contents/Java/hardware/tools/avr/bin/avrdude),)
+    ARD_HOME := $(ARD_HOME)/Contents/Java
 endif
 
 
