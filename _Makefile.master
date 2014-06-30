@@ -622,28 +622,30 @@ define run-cxx
 endef
 
 ifdef BOARD_SUB
-	USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
+    USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
+
 ifndef USE_1200BPS_TOUCH
-	USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
+    USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 ifeq "$(PROGRAMMER)" "halfkay"
 define run-uploader
     $(TEENSY_LOADER_CLI) -mmcu=$(CPU_MCU) -v -w $(IMAGE).hex
+    sleep 4
 endef
 else ifeq "$(USE_1200BPS_TOUCH)" "true"
 
 ifeq "$(PLATFORM)" "Darwin"
-	STTY_ARGS := -f $(PORT) 1200
+    STTY_ARGS := -f $(PORT) 1200
 else
-	STTY_ARGS := -F $(PORT) 1200
+    STTY_ARGS := -F $(PORT) 1200
 endif
 
 define run-uploader
-	stty $(STTY_ARGS)
-	sleep 2
-	$(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
+    stty $(STTY_ARGS)
+    sleep 2
+    $(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
 endef
 
 else
