@@ -123,6 +123,8 @@ endif
 # Make if easier for Mac users, so they only have to define the path to the application.
 ifneq ($(wildcard $(ARD_HOME)/Contents/Resources/Java/hardware/tools/avr/bin/avrdude),)
     ARD_HOME := $(ARD_HOME)/Contents/Resources/Java
+else ifneq ($(wildcard $(ARD_HOME)/Contents/Java/hardware/tools/avr/bin/avrdude),)
+    ARD_HOME := $(ARD_HOME)/Contents/Java
 endif
 
 
@@ -671,11 +673,11 @@ $(BUILD_DIR):
 	$(MKDIR) $@
 
 $(SKT_PDE_OBJ): $(SKT_PDE_SRC)
-	cat $(SKT_PDE_SRC) > $(BUILD_DIR)/$(SKETCH).ino.cpp
+	cat $(SKT_PDE_SRC) > $(BUILD_DIR)/$(SKETCH)_ino.cpp
 	cd $(BUILD_DIR) && $(CXX) -c $(subst build/,,$(CXX_FLAGS)) \
 	    $(OPT_FLAGS) $(ARD_FLAGS) -I.. \
 	    $(patsubst -I..%,-I../..%,$(INC_FLAGS)) \
-	    $(SKETCH).ino.cpp -o $(@F)
+	    $(SKETCH)_ino.cpp -o $(@F)
 
 
 $(BUILD_DIR)/%.c.o: $(ARD_SRC_DIR)/%.c
