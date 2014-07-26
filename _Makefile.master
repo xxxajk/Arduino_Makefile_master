@@ -102,9 +102,16 @@ TR ?= tr
 ifndef BOARD
     $(error BOARD not defined)
 endif
+
 ifndef PORT
-    $(error PORT not defined)
+    ifndef CPORT
+        $(error PORT not defined)
+    else
+        PORT = $(CPORT)
+    endif
 endif
+
+CPORT ?= $(PORT)
 
 # Set default values if ARD_HOME is not defined.
 PLATFORM = $(shell uname -s)
@@ -120,7 +127,7 @@ ifndef ARD_HOME
     endif
 endif
 
-# Make if easier for Mac users, so they only have to define the path to the application.
+# Make it easier for Mac users, so they only have to define the path to the application.
 ifneq ($(wildcard $(ARD_HOME)/Contents/Resources/Java/hardware/tools/avr/bin/avrdude),)
     ARD_HOME := $(ARD_HOME)/Contents/Resources/Java
 else ifneq ($(wildcard $(ARD_HOME)/Contents/Java/hardware/tools/avr/bin/avrdude),)
@@ -132,6 +139,44 @@ endif
 ifeq ($(wildcard $(ARD_HOME)),)
     $(error $(ARD_HOME) does not exist)
 endif
+
+# Platform-specific settings.
+ifeq "$(PLATFORM)" "SunOS"
+    define run-monitor
+        gnome-terminal -t '$(BOARD) $(CPORT)' \
+        -e 'env -i tip -$(MON_SPEED) $(CPORT)' &
+    endef
+    ifeq "$(CPORT)" "$(PORT)"
+        define kill-monitor
+            - pkill -f 'tip.*$(CPORT)'
+        endef
+    endif
+else ifeq "$(PLATFORM)" "Linux"
+    define run-monitor
+        screen $(CPORT) $(MON_SPEED)
+    endef
+    ifeq "$(CPORT)" "$(PORT)"
+        define kill-monitor
+            - pkill -f 'screen.*$(CPORT)'
+        endef
+    endif
+
+else ifeq "$(PLATFORM)" "Darwin"
+    define run-monitor
+        screen $(CPORT) $(MON_SPEED)
+    endef
+    ifeq "$(CPORT)" "$(PORT)"
+        define kill-monitor
+            - pkill -f 'screen.*$(CPORT)'
+        endef
+    endif
+else
+    $(error Unknown platform $(PLATFORM))
+endif
+
+# Standard macros.
+SKETCH = $(notdir $(CURDIR))
+BUILD_DIR = build
 
 # Read revision from revisions.txt.
 ifndef ARD_REV
@@ -164,55 +209,65 @@ else ifneq ($(wildcard $(ARD_HOME)/build/linux/work/hardware/tools/avrdude),)
     TEENSY_LOADER_CLI ?= $(ARD_HOME)/build/linux/work/hardware/tools/teensy_loader_cli
 endif
 
-# Version-specific settings.
-ifdef THIRD_PARTY_HARDWARE # Check if a third party hardware add-on is used.
-    ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
 
-    ifdef BOARD_SUB
-        CORE := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
-    endif
-    ifndef CORE
-        CORE = $(shell $(SED) -n 's/^$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
-    endif
-
-    ifeq "$(CORE)" "arduino:arduino" # Check if it is using the standard Arduino core - supported since 1.5.x
-        ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
-    else
-        ARD_SRC_DIR = $(THIRD_PARTY_HARDWARE)/cores/$(CORE)
-    endif
-
-    ifdef BOARD_SUB
-        VARIANT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-    endif
-    ifndef VARIANT
-        VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-    endif
-    ifndef VARIANT
-        $(error Unknown board '$(BOARD)')
-    endif
-    INTERNAL_LIB_DIRS += $(THIRD_PARTY_HARDWARE)/variants/$(VARIANT)
-else
+ifdef THIRD_PARTY_HARDWARE
+    TPH_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
+endif
 
 ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/avr/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/arduino/avr/boards.txt
+    ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
+#
+#    Not supported yet!
+#
     TEENSY_BOARDS = $(ARD_HOME)/hardware/teensy/boards.txt
     TEENSY_BASE = $(ARD_HOME)/hardware/teensy/cores/
-    ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
 
     ifdef BOARD_SUB
-        VARIANT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-    endif
-    ifndef VARIANT
-        VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+        ifdef TPH_BOARDS
+            VARIANT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(TPH_BOARDS))
+            ifndef VARIANT
+                VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(TPH_BOARDS))
+            endif
+            ifdef VARIANT
+                ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
+	        INTERNAL_LIB_DIRS += $(THIRD_PARTY_HARDWARE)/variants/$(VARIANT)
+                CORE := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(TPH_BOARDS))
+                ifndef CORE
+                    CORE = $(shell $(SED) -n 's/^$(BOARD)\.build\.core=\(.*\)/\1/p' < $(TPH_BOARDS))
+                endif
+                    ifeq "$(CORE)" "arduino:arduino" # Check if it is using the standard Arduino core - supported since 1.5.x
+                        ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
+                    else
+                        ARD_SRC_DIR = $(THIRD_PARTY_HARDWARE)/cores/$(CORE)
+                    endif
+                endif
+            endif
+        ifndef VARIANT
+            VARIANT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+            ifndef VARIANT
+                VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+            endif
+            ifdef VARIANT
+                INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/avr/variants/$(VARIANT)
+            endif
+        endif
+        ifndef VARIANT
+            $(error Unknown variant '$(BOARD_SUB)' for board  '$(BOARD)')
+        endif
     endif
     ifndef VARIANT
         $(error Unknown board '$(BOARD)')
     endif
-    INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/avr/variants/$(VARIANT)
+
 else ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/boards.txt),)
     ARD_BOARDS = $(ARD_HOME)/hardware/arduino/boards.txt
+#
+# Not supported
+#
     TEENSY_BOARDS = $(ARD_HOME)/hardware/teensy/boards.txt
     TEENSY_BASE = $(ARD_HOME)/hardware/teensy/cores/
+
     ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/cores/arduino
     VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     ifndef VARIANT
@@ -224,43 +279,10 @@ else ifneq ($(wildcard $(ARD_HOME)/hardware/boards.txt),)
     ARD_SRC_DIR = $(ARD_HOME)/hardware/cores/arduino
 endif
 
-endif
 
 ifndef ARD_BOARDS
     $(error Can not locate boards.txt)
 endif
-
-# Platform-specific settings.
-ifeq "$(PLATFORM)" "SunOS"
-    define run-monitor
-        gnome-terminal -t '$(BOARD) $(PORT)' \
-        -e 'env -i tip -$(MON_SPEED) $(PORT)' &
-    endef
-    define kill-monitor
-        - pkill -f 'tip.*$(PORT)'
-    endef
-else ifeq "$(PLATFORM)" "Linux"
-    define run-monitor
-        screen $(PORT) $(MON_SPEED)
-    endef
-    define kill-monitor
-        - pkill -f 'screen.*$(PORT)'
-    endef
-else ifeq "$(PLATFORM)" "Darwin"
-    define run-monitor
-        screen $(PORT) $(MON_SPEED)
-    endef
-    define kill-monitor
-        - pkill -f 'screen.*$(PORT)'
-    endef
-else
-    $(error Unknown platform $(PLATFORM))
-endif
-
-# Standard macros.
-SKETCH = $(notdir $(CURDIR))
-BUILD_DIR = build
-VPATH = $(LIB_DIRS)
 
 # Macros derived from boards.txt.
 ifdef BOARD_SUB
@@ -292,7 +314,12 @@ endif
 # No board yet. Check for teensy boards.
 ifndef MCU
     ifneq ($(wildcard $(TEENSY_BOARDS)),)
-        USB_BUILD_DEFINE ?= USB_SERIAL # Can be set to the following: USB_SERIAL, USB_HID, USB_SERIAL_HID, USB_DISK, USB_DISK_SDFLASH, USB_MIDI, USB_RAWHID or USB_FLIGHTSIM
+        #
+        # Can be set to the following depending on the board: 
+        # USB_NONE, USB_SERIAL, USB_HID, USB_SERIAL_HID, USB_DISK
+        # USB_DISK_SDFLASH, USB_MIDI, USB_RAWHID or USB_FLIGHTSIM
+        # 
+        USB_BUILD_DEFINE ?= USB_SERIAL
         USE_LAYOUT := LAYOUT_US_ENGLISH
         ARD_BOARDS = $(TEENSY_BOARDS)
         BUILD_CORE = $(shell $(SED) -n 's/^$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
@@ -335,7 +362,6 @@ ifndef MCU
 endif
 
 CPU_MCU = $(MCU)
-
 
 
 #
@@ -632,28 +658,52 @@ ifndef USE_1200BPS_TOUCH
 endif
 
 ifeq "$(PROGRAMMER)" "halfkay"
-define run-uploader
-    $(TEENSY_LOADER_CLI) -mmcu=$(CPU_MCU) -v -w $(IMAGE).hex
-    sleep 4
-endef
+    define run-uploader
+        $(TEENSY_LOADER_CLI) -mmcu=$(CPU_MCU) -v -w $(IMAGE).hex
+        sleep 4
+    endef
+else ifeq "$(PROGRAMMER)" "GDB"
+    ifneq ($(wildcard $(USED_BIN)/$(USED_TARGET)-gdb),)
+        define run-uploader 
+            @echo 'file $(IMAGE).elf' > $(IMAGE).upload
+            @echo 'target remote $(PORT)' >> $(IMAGE).upload
+            @echo 'monitor reset init' >> $(IMAGE).upload
+            @echo 'load' >> $(IMAGE).upload
+            @echo 'monitor reset init' >> $(IMAGE).upload
+            @echo 'monitor resume' >> $(IMAGE).upload
+            @echo 'quit' >> $(IMAGE).upload
+            $(USED_BIN)/$(USED_TARGET)-gdb -n -batch -x $(IMAGE).upload
+        endef
+    else
+        define run-uploader 
+            @echo 'file $(IMAGE).elf' > $(IMAGE).upload
+            @echo 'target remote $(PORT)' >> $(IMAGE).upload
+            @echo 'monitor reset init' >> $(IMAGE).upload
+            @echo 'load' >> $(IMAGE).upload
+            @echo 'monitor reset init' >> $(IMAGE).upload
+            @echo 'monitor resume' >> $(IMAGE).upload
+            @echo 'quit' >> $(IMAGE).upload
+            $(USED_TARGET)-gdb -n -batch -x $(IMAGE).upload
+        endef
+    endif
 else ifeq "$(USE_1200BPS_TOUCH)" "true"
 
-ifeq "$(PLATFORM)" "Darwin"
-    STTY_ARGS := -f $(PORT) 1200
-else
-    STTY_ARGS := -F $(PORT) 1200
-endif
+    ifeq "$(PLATFORM)" "Darwin"
+        STTY_ARGS := -f $(PORT) 1200
+    else
+        STTY_ARGS := -F $(PORT) 1200
+    endif
 
-define run-uploader
-    stty $(STTY_ARGS)
-    sleep 2
-    $(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
-endef
+    define run-uploader
+        stty $(STTY_ARGS)
+        sleep 2
+        $(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
+    endef
 
 else
-define run-uploader
-    $(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
-endef
+    define run-uploader
+        $(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
+    endef
 endif
 
 # Rules.
