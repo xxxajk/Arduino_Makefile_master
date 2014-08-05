@@ -36,46 +36,70 @@
 #
 # Makefile for building Arduino projects outside of the Arduino environment
 #
-# This makefile should be included into a per-project Makefile of the following
-# form:
+# This makefile should be included into a per-project Makefile.
+# Examples:
 #
 # ----------
 # BOARD = mega
-# PORT = /dev/term/0
-# THIRD_PARTY_HARDWARE = ../hardware/Sanguino
-# INC_DIRS = ../common
-# LIB_DIRS = ../libraries/Task ../../libraries/VirtualWire
+# PORT = /dev/ACM0
+# include ../Arduino_Makefile_master/Makefile.master
+# ----------
+#
+# ----------
+# BOARD = mega
+# PORT = /dev/ACM0
+# CPORT = /dev/ACM1
+# include ../Arduino_Makefile_master/Makefile.master
+# ----------
+#
+# ----------
+# BOARD = world-domination
+# PORT = localhost:4242
+# CPORT = /dev/ACM0
+# THIRD_PARTY_HARDWARE = ~/hardware/evil_dev_kit
 # include ../Arduino_Makefile_master/Makefile.master
 # ----------
 #
 # Where:
 #	BOARD                : Arduino board type, from boards.txt
 #	BOARD_SUB            : If the board is part a sub menu introduced in Arduino 1.5.x, then you must set this as well
-#	PORT                 : USB port
-#	THIRD_PARTY_HARDWARE : Path to third party hardware folder
-#	INC_DIRS             : List pf directories containing header files
-#	LIB_DIRS             : List of directories containing library source
+#	THIRD_PARTY_HARDWARE : Path to a third party hardware directory, if used
 #
-# Before using this Makefile you can adjust the following macros to suit
-# your environment, either by editing this file directly or by defining them in
-# the Makefile that includes this one, in which case they will override the
-# definitions below:
-#   ARD_REV      : arduino software revision, e.g. 0017, 0018
+# One or both of the following must be defined
+#	PORT                 : what device/network url to use for programming, if not given, defaults to the value used for CPORT
+#	CPORT                : what device/network url to use for the monitor, if not given, defaults to the value used for PORT
+#
+# Before using this Makefile you can define the following macros to suit
+# your environment, either by editing this file directly, or by defining them 
+# in the Makefile that includes this one, in which case they will override the
+# default or automatically discovered definitions.
+#
 #   ARD_HOME     : installation directory of the Arduino software.
 #   AVR_BIN      : location of compiler binaries
 #   AVRDUDE      : location of avrdude executable
 #   AVRDUDE_CONF : location of avrdude configuration file
 #   PROGRAMMER   : avrdude programmer type
 #   MON_SPEED    : serial monitor speed
+#   GCS          : ld flags for garbage collection
+#   OPT_FLAGS    : optimization flags for the compilers
 #   EXTRA_FLAGS  : any extra flags that should be passed to the compilers
+#
+#   WHICH        : The GNU or system which utility
+#   MKDIR        : The GNU or system mkdir utility
+#   RM           : The GNU or system rm utility
+#   MV           : The GNU or system mv utility
 #   FIND         : The GNU or system find utility
 #   UNIQ         : The GNU or system uniq utility
 #   DIRNAME      : The GNU or system dirname utlity
 #   SED          : The GNU or system sed utility
 #   GREP         : The GNU or system grep utility
-#   WHICH        : The GNU or system which utility
-#
+#   CP           : The GNU or system cp utility
+#   CUT          : The GNU or system cut utility
+#   HEAD         : The GNU or system head utility
+#   TR           : The GNU or system tr utility
 
+
+### Nothing below here should require editing. ###
 # Global configuration.
 
 MON_SPEED ?= 115200
@@ -83,16 +107,20 @@ GCS ?= -Wl,--relax,--gc-sections
 # Optimiser flags.
 OPT_FLAGS ?= -Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD
 
-### Nothing below here should require editing. ###
-MKDIR = mkdir -p
-RM = rm -fr
-MV = mv -f
+####
+#
+# TO-DO: autodiscover explicit paths to these utilities
+#
+####
+WHICH ?= which
 FIND ?= find
+MKDIR ?= mkdir -p
+RM ?= rm -fr
+MV ?= mv -f
 UNIQ ?= uniq
 DIRNAME ?= dirname
 SED ?= sed
 GREP ?= grep
-WHICH ?= which
 CP ?= cp
 CUT ?= cut
 HEAD ?= head
@@ -176,7 +204,10 @@ endif
 
 # Standard macros.
 SKETCH = $(notdir $(CURDIR))
-BUILD_DIR = build
+BUILD_PATH = build
+BUILD_DIR = $(BUILD_PATH)/$(BOARD)
+# Match patterns
+VPATH = $(LIB_DIRS)
 
 # Read revision from revisions.txt.
 ifndef ARD_REV
@@ -487,8 +518,6 @@ USED_BIN ?= $(AVR_BIN)
 # ...and if the target is not set, default to avr
 USED_TARGET ?= avr
 
-#$(error bin = $(USED_BIN), target = $(USED_TARGET))
-
 # Build tools.
 CC = $(USED_BIN)/$(USED_TARGET)-gcc
 CXX = $(USED_BIN)/$(USED_TARGET)-g++
@@ -564,54 +593,65 @@ endif
 
 ARD_FLAGS += -DF_CPU=$(F_CPU) -DARDUINO=$(ARD_REV) $(ARD_MCP)
 
-C_CXX_FLAGS = -g -w -Wa,-adhlns=$(BUILD_DIR)/$*.lst $(EXTRA_FLAGS) -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion
+C_CXX_FLAGS = -g -w -Wa,-adhlns=$(@D)/$*.lst $(EXTRA_FLAGS) -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion
 
-C_FLAGS = \
+C_FLAGS = -x c \
     -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration $(C_CXX_FLAGS) $(EXT_C_FLAGS)
 
-CXX_FLAGS = \
+CXX_FLAGS = -x c++ \
     $(C_CXX_FLAGS) $(EXT_CPP_FLAGS)
 
 # Build parameters.
 IMAGE = $(BUILD_DIR)/$(SKETCH)
 
-# Target sources
+# core sources
 ARD_C_SRC = $(wildcard $(ARD_SRC_DIR)/*.c)
 ARD_CXX_SRC = $(wildcard $(ARD_SRC_DIR)/*.cpp)
-ARD_C_OBJ = $(patsubst %.c,%.c.o,$(notdir $(ARD_C_SRC)))
-ARD_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(notdir $(ARD_CXX_SRC)))
-ARD_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(ARD_C_OBJ)))
-ARD_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(ARD_CXX_OBJ)))
+ALL_ARD_SRC = $(ARD_C_SRC) $(ARD_CXX_SRC)
+ARD_C_OBJ = $(patsubst %.c,%_c.o,$(notdir $(ARD_C_SRC)))
+ARD_CXX_OBJ = $(patsubst %.cpp,%_cpp.o,$(notdir $(ARD_CXX_SRC)))
+ARD_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/core/%,$(notdir $(ARD_C_OBJ)))
+ARD_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/core/%,$(notdir $(ARD_CXX_OBJ)))
 ALL_CORE_OBJS = $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS)
-#ARD_OBJS = $(BUILD_DIR)/($(ARD_C_OBJ) $(ARD_CXX_OBJ))
 
-# Sketch libraries.
+# library sources
 LIB_C_SRC = $(foreach ld,$(LIB_DIRS),$(wildcard $(ld)/*.c))
 LIB_CXX_SRC = $(foreach ld,$(LIB_DIRS),$(wildcard $(ld)/*.cpp))
-LIB_SRC = $(LIB_C_SRC) $(LIB_CXX_SRC)
+ALL_LIB_SRC = $(LIB_C_SRC) $(LIB_CXX_SRC)
 ifneq "$(strip $(LIB_C_SRC) $(LIB_CXX_SRC))" ""
-    LIB_C_OBJ = $(patsubst %.c,%.c.o,$(notdir $(LIB_C_SRC)))
-    LIB_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(notdir $(LIB_CXX_SRC)))
+    LIB_C_OBJ = $(patsubst %.c,%_c.o,$(notdir $(LIB_C_SRC)))
+    LIB_CXX_OBJ = $(patsubst %.cpp,%_cpp.o,$(notdir $(LIB_CXX_SRC)))
     LIB_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(LIB_C_OBJ)))
     LIB_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(LIB_CXX_OBJ)))
     ALL_LIB_OBJS = $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS)
 endif
 
-# Sketch INO source.
-SKT_PDE_SRC = $(wildcard *.ino)
-ifneq "$(strip $(SKT_PDE_SRC))" ""
-    SKT_PDE_OBJ = $(BUILD_DIR)/$(SKETCH)_ino.o
-endif
 
-# C and C++ source.
+# Sketch INO source. FAIL on > 1 .ino
+SKT_PDE_SRC = $(wildcard *.ino)
+SKT_PDE_OBJ = $(BUILD_DIR)/$(SKETCH)_ino.o
+
+# Sketch C and C++ source.
 SKT_C_SRC = $(wildcard *.c)
 SKT_CXX_SRC = $(wildcard *.cpp)
+ALL_SKT_SRC = $(SKT_C_SRC) $(SKT_CXX_SRC)
 ifneq "$(strip $(SKT_C_SRC) $(SKT_CXX_SRC))" ""
     SKT_C_OBJ = $(patsubst %.c,%.c.o,$(SKT_C_SRC))
     SKT_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(SKT_CXX_SRC))
     SKT_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(SKT_C_OBJ))
     SKT_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(SKT_CXX_OBJ))
     SKT_LINK_OBJS = $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS)
+endif
+
+# Match patterns
+VPATH = $(LIB_DIRS)
+
+ifdef BOARD_SUB
+    USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+
+ifndef USE_1200BPS_TOUCH
+    USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
 # Common rule bodies.
@@ -628,34 +668,48 @@ define show_burn_info
     $(SIZE) -B $(IMAGE).elf
 endef
 endif
+define build-msg
+    @echo -n 'Building "$(@)"... '
+endef
 
 define run-cc
-    $(CC) -c $(C_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
-        -MMD $< -o $(BUILD_DIR)/$(@F)
-    @$(CXXFILT) < $(BUILD_DIR)/$*.lst > $(BUILD_DIR)/$*.lst.tmp
-    @$(MV) $(BUILD_DIR)/$*.lst.tmp $(BUILD_DIR)/$*.lst
-    @$(CP) $(BUILD_DIR)/$*.c.d $(BUILD_DIR)/$*.c.P
-    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(BUILD_DIR)/$*.c.P >> $(BUILD_DIR)/$*.c.d
-    @$(RM) -f $(BUILD_DIR)/$*.c.P
+    $(build-msg)
+    @$(CC) -c $(C_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
+        -MMD $< -o $(@)
+    @$(MV) $(@D)/$*.lst $(@D)/$*_c.lst
+    @$(CXXFILT) < $(@D)/$*_c.lst > $(@D)/$*_c.lst.tmp
+    @$(MV) $(@D)/$*_c.lst.tmp $(@D)/$*_c.lst
+    @$(CP) $(@D)/$*_c.d $(@D)/$*_c.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_c.P >> $(@D)/$*_c.d
+    @$(RM) -f $(@D)/$*_c.P
+    @echo
 endef
 
 define run-cxx
-    $(CXX) -c $(CXX_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
-        -MMD $< -o $(BUILD_DIR)/$(@F)
-    @$(CXXFILT) < $(BUILD_DIR)/$*.lst > $(BUILD_DIR)/$*.lst.tmp
-    @$(MV) $(BUILD_DIR)/$*.lst.tmp $(BUILD_DIR)/$*.lst
-    @$(CP) $(BUILD_DIR)/$*.cpp.d $(BUILD_DIR)/$*.cpp.P
-    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(BUILD_DIR)/$*.cpp.P >> $(BUILD_DIR)/$*.cpp.d
-    @$(RM) -f $(BUILD_DIR)/$*.cpp.P
+    $(build-msg)
+    @$(CXX) -c $(CXX_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
+        -MMD $< -o $(@)
+    @$(MV) $(@D)/$*.lst $(@D)/$*_cpp.lst
+    @$(CXXFILT) < $(@D)/$*_cpp.lst > $(@D)/$*_cpp.lst.tmp
+    @$(MV) $(@D)/$*_cpp.lst.tmp $(@D)/$*_cpp.lst
+    @$(CP) $(@D)/$*_cpp.d $(@D)/$*_cpp.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_cpp.P >> $(@D)/$*_cpp.d
+    @$(RM) -f $(@D)/$*_cpp.P
+    @echo
 endef
 
-ifdef BOARD_SUB
-    USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
-endif
-
-ifndef USE_1200BPS_TOUCH
-    USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
-endif
+define run-cxx-ino
+    $(build-msg)
+    @$(CXX) -c $(CXX_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
+        -MMD $< -o $(@)
+    @$(MV) $(@D)/$*.lst $(@D)/$*_ino.lst
+    @$(CXXFILT) < $(@D)/$*_ino.lst > $(@D)/$*_ino.lst.tmp
+    @$(MV) $(@D)/$*_ino.lst.tmp $(@D)/$*_ino.lst
+    @$(CP) $(@D)/$*_ino.d $(@D)/$*_ino.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_ino.P >> $(@D)/$*_ino.d
+    @$(RM) -f $(@D)/$*_ino.P
+    @echo
+endef
 
 ifeq "$(PROGRAMMER)" "halfkay"
     define run-uploader
@@ -706,54 +760,64 @@ else
     endef
 endif
 
-# Rules.
-.PHONY: all clean upload monitor upload_monitor upmonitor
+define run-ar
+    $(build-msg)
+    @$(AR) rcs $@ $?
+    @echo
+endef
 
-all: $(BUILD_DIR) $(IMAGE).hex
+# Rules.
+.PHONY: all squeeky clean upload monitor upload_monitor upmonitor
+
+all: $(BUILD_DIR)/core $(IMAGE).hex
 
 
 clean:
-	$(RM) $(BUILD_DIR)
-	$(RM) *~ *.bak *.BAK *.Bak *.orig
-	$(RM) */*~ */*.bak */*.BAK */*.Bak */*.orig
-	$(RM) */*/*~ */*/*.bak */*/*.BAK */*/*.Bak */*/*.orig
-	sync
+	@echo -n "Cleaning... "
+	@$(RM) -fr $(BUILD_DIR)
+	@$(RM) *~ *.bak *.BAK *.Bak *.orig
+	@$(RM) */*~ */*.bak */*.BAK */*.Bak */*.orig
+	@$(RM) */*/*~ */*/*.bak */*/*.BAK */*/*.Bak */*/*.orig
+	@sync
+	@echo Done.
 
-$(BUILD_DIR):
-	$(MKDIR) $@
+squeeky: clean
+	@$(RM) -fr $(BUILD_PATH)
+	@sync
 
-$(SKT_PDE_OBJ): $(SKT_PDE_SRC)
-	cat $(SKT_PDE_SRC) > $(BUILD_DIR)/$(SKETCH)_ino.cpp
-	cd $(BUILD_DIR) && $(CXX) -c $(subst build/,,$(CXX_FLAGS)) \
-	    $(OPT_FLAGS) $(ARD_FLAGS) -I.. \
-	    $(patsubst -I..%,-I../..%,$(INC_FLAGS)) \
-	    $(SKETCH)_ino.cpp -o $(@F)
+$(BUILD_DIR)/core:
+	@$(MKDIR) $@
 
-
-$(BUILD_DIR)/%.c.o: $(ARD_SRC_DIR)/%.c
+$(BUILD_DIR)/%_ino.o: %.ino
+	$(run-cxx-ino)
+#
+# Important! 
+# We do not want VPATH to interfere, thus this rule.
+#
+$(BUILD_DIR)/core/%_c.o: $(ARD_SRC_DIR)/%.c
 	$(run-cc)
 
-$(BUILD_DIR)/%.cpp.o: $(ARD_SRC_DIR)/%.cpp
+#
+# Important! 
+# We do not want VPATH to interfere, thus this rule.
+#
+$(BUILD_DIR)/core/%_cpp.o: $(ARD_SRC_DIR)/%.cpp
 	$(run-cxx)
 
-$(BUILD_DIR)/%.c.o: %.c
+$(BUILD_DIR)/%_c.o: %.c
 	$(run-cc)
 
-$(BUILD_DIR)/%.cpp.o: %.cpp
+$(BUILD_DIR)/%_cpp.o: %.cpp
 	$(run-cxx)
 
+$(BUILD_DIR)/core/libAcore.a: $(ALL_CORE_OBJS)
+	$(run-ar)
 
 #
-# TO-DO: Compile core once and cache it someplace, using defines as part of the name
+# TO-DO: Compile libraries separately, once
 #
-build/libAcore.a: $(ALL_CORE_OBJS)
-	$(AR) rcs $@ $?
-
-#
-# TO-DO: Compile libraries separately, once, cahche them, and use defines as part of the name
-#
-build/libAuser.a: $(ALL_LIB_OBJS)
-	$(AR) rcs $@ $?
+$(BUILD_DIR)/libAuser.a: $(ALL_LIB_OBJS)
+	$(run-ar)
 
 ############################################################################
 ############################################################################
@@ -762,11 +826,11 @@ build/libAuser.a: $(ALL_LIB_OBJS)
 ifeq "$(BUILD_ARCH)" "arm-none-eabi"
 #
 # Everything checks out OK.
-# This really belongs in a CRT section, but, is not.
+# Some of this file really belongs in a CRT section, but, is not.
 # Fact of the matter is that you should not have to rebuild it for
-# each compile, but instead have 2 crt files.
-# One for the 128, and one for the 256...
-# So I have to add special rule, so compiles work.
+# each compile, but instead have crt files.
+# One for each variant, or something generic...
+# So I have to add this special rule, so compiles work.
 #
 # As a sideeffect, simple sketch sizes go from 70KB down to 17KB.
 # This is about a 24.29% savings in flash space, and more room
@@ -775,13 +839,13 @@ ifeq "$(BUILD_ARCH)" "arm-none-eabi"
 #
 # Hopefully Paul will fix this one day...
 #
-$(BUILD_DIR)/crtk20.o: $(BUILD_DIR)/mk20dx128.c.o
-	$(CP) $(BUILD_DIR)/mk20dx128.c.o $(BUILD_DIR)/crtk20.o
+$(BUILD_DIR)/crt_mk2xx.o: $(BUILD_DIR)/core/mk20dx128.c.o
+	$(CP) $(BUILD_DIR)/core/mk20dx128.c.o $(BUILD_DIR)/crt_mk2xx.o
 
 #
 # Add it to the deps.
 #
-EXT_LINK_EXTRA = $(BUILD_DIR)/crtk20.o
+EXT_LINK_EXTRA = $(BUILD_DIR)/crt_mk2xx.o
 endif
 
 ############################################################################
@@ -792,26 +856,26 @@ endif
 #
 # TO-DO: Check if this file or Makefile has changed, and if so, run clean, and re-compile everything
 #
-$(IMAGE).hex: $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) build/libAcore.a build/libAuser.a $(EXT_LINK_EXTRA)
-	$(CC) -Os \
+$(IMAGE).hex: $(BUILD_DIR) $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) $(BUILD_DIR)/core/libAcore.a $(BUILD_DIR)/libAuser.a $(EXT_LINK_EXTRA)
+	@$(CC) -Os \
 	    $(GCS) \
 	    $(ARD_MCP) $(EXT_LINK_FLAGS) \
 	    $(EXT_LINK_T_FLAGS) \
 	    $(EXT_LINK_EXTRA) \
 	    $(SKT_PDE_OBJ) \
             $(SKT_LINK_OBJS) \
-	    -L$(BUILD_DIR) \
+	    -L$(BUILD_DIR) -L$(BUILD_DIR)/core \
 	    -lAuser \
 	    -lAcore \
 	    $(EXT_LIBS) \
 	    -lm \
 	    -o $(IMAGE).elf 
-	$(OBJCOPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load \
+	@$(OBJCOPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load \
 	    --no-change-warnings --change-section-lma .eeprom=0 $(IMAGE).elf \
 	    $(IMAGE).eep
-	$(OBJCOPY) -O ihex -R .eeprom $(IMAGE).elf $(IMAGE).hex
-	$(OBJDUMP) -h -S $(IMAGE).elf | $(CXXFILT) -t > $(IMAGE).lst
-	$(show_burn_info)
+	@$(OBJCOPY) -O ihex -R .eeprom $(IMAGE).elf $(IMAGE).hex
+	@$(OBJDUMP) -h -S $(IMAGE).elf | $(CXXFILT) -t > $(IMAGE).lst
+	@$(show_burn_info)
 
 
 upload: all
