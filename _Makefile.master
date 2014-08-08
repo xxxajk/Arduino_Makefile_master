@@ -61,13 +61,13 @@
 # ----------
 #
 # Where:
-#	BOARD                : Arduino board type, from boards.txt
-#	BOARD_SUB            : If the board is part a sub menu introduced in Arduino 1.5.x, then you must set this as well
-#	THIRD_PARTY_HARDWARE : Path to a third party hardware directory, if used
+#        BOARD                : Arduino board type, from boards.txt
+#        BOARD_SUB            : If the board is part a sub menu introduced in Arduino 1.5.x, then you must set this as well
+#        THIRD_PARTY_HARDWARE : Path to a third party hardware directory, if used
 #
 # One or both of the following must be defined
-#	PORT                 : what device/network url to use for programming, if not given, defaults to the value used for CPORT
-#	CPORT                : what device/network url to use for the monitor, if not given, defaults to the value used for PORT
+#        PORT                 : what device/network url to use for programming, if not given, defaults to the value used for CPORT
+#        CPORT                : what device/network url to use for the monitor, if not given, defaults to the value used for PORT
 #
 # Before using this Makefile you can define the following macros to suit
 # your environment, either by editing this file directly, or by defining them 
@@ -262,7 +262,7 @@ ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/avr/boards.txt),)
             endif
             ifdef VARIANT
                 ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
-	        INTERNAL_LIB_DIRS += $(THIRD_PARTY_HARDWARE)/variants/$(VARIANT)
+                INTERNAL_LIB_DIRS += $(THIRD_PARTY_HARDWARE)/variants/$(VARIANT)
                 CORE := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(TPH_BOARDS))
                 ifndef CORE
                     CORE = $(shell $(SED) -n 's/^$(BOARD)\.build\.core=\(.*\)/\1/p' < $(TPH_BOARDS))
@@ -430,40 +430,40 @@ ifdef USE_LAYOUT
 endif
 
 ifdef BOARD_EXTRA_FLAGS
-	ifdef BOARD_SUB
-		USB_VID := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
-		USB_PID := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
-		USB_MANUFACTURER := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
-		USB_PRODUCT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
-	endif
-	ifndef USB_VID
-		USB_VID := $(shell $(SED) -n 's/^$(BOARD)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
-	endif
-	ifndef USB_PID
-		USB_PID := $(shell $(SED) -n 's/^$(BOARD)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
-	endif
-	ifndef USB_MANUFACTURER
-		USB_MANUFACTURER := $(shell $(SED) -n 's/^$(BOARD)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
-	endif
-	ifndef USB_PRODUCT
-		USB_PRODUCT := $(shell $(SED) -n 's/^$(BOARD)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
-	endif
+        ifdef BOARD_SUB
+                USB_VID := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
+                USB_PID := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
+                USB_MANUFACTURER := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
+                USB_PRODUCT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
+        endif
+        ifndef USB_VID
+                USB_VID := $(shell $(SED) -n 's/^$(BOARD)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
+        endif
+        ifndef USB_PID
+                USB_PID := $(shell $(SED) -n 's/^$(BOARD)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
+        endif
+        ifndef USB_MANUFACTURER
+                USB_MANUFACTURER := $(shell $(SED) -n 's/^$(BOARD)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
+        endif
+        ifndef USB_PRODUCT
+                USB_PRODUCT := $(shell $(SED) -n 's/^$(BOARD)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
+        endif
 
-	ifdef USB_VID
-		USB_FLAGS = -DUSB_VID=$(USB_VID)
-	endif
-	ifdef USB_PID
-		USB_FLAGS += -DUSB_PID=$(USB_PID)
-	endif
-	ifdef USB_MANUFACTURER
-		USB_FLAGS += '-DUSB_MANUFACTURER=$(USB_MANUFACTURER)'
-	endif
-	ifdef USB_PRODUCT
-		USB_FLAGS += '-DUSB_PRODUCT=$(USB_PRODUCT)'
-	endif
+        ifdef USB_VID
+                USB_FLAGS = -DUSB_VID=$(USB_VID)
+        endif
+        ifdef USB_PID
+                USB_FLAGS += -DUSB_PID=$(USB_PID)
+        endif
+        ifdef USB_MANUFACTURER
+                USB_FLAGS += '-DUSB_MANUFACTURER=$(USB_MANUFACTURER)'
+        endif
+        ifdef USB_PRODUCT
+                USB_FLAGS += '-DUSB_PRODUCT=$(USB_PRODUCT)'
+        endif
 
-	BOARD_EXTRA_FLAGS := $(subst {build.usb_flags},$(USB_FLAGS),$(BOARD_EXTRA_FLAGS)) # Subst {build.usb_flags} with -DUSB_VID={build.vid} -DUSB_PID={build.pid} '-DUSB_MANUFACTURER={build.usb_manufacturer}' '-DUSB_PRODUCT={build.usb_product}'
-	EXTRA_FLAGS += $(BOARD_EXTRA_FLAGS)
+        BOARD_EXTRA_FLAGS := $(subst {build.usb_flags},$(USB_FLAGS),$(BOARD_EXTRA_FLAGS)) # Subst {build.usb_flags} with -DUSB_VID={build.vid} -DUSB_PID={build.pid} '-DUSB_MANUFACTURER={build.usb_manufacturer}' '-DUSB_PRODUCT={build.usb_product}'
+        EXTRA_FLAGS += $(BOARD_EXTRA_FLAGS)
 endif
 
 
@@ -492,12 +492,12 @@ endif
 
 # Teensy architecture:
 ifndef BUILD_ARCH
-	ifdef BOARD_SUB
-    	BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
-	endif
-	ifndef BUILD_ARCH
-    	BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
-	endif
+        ifdef BOARD_SUB
+            BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+        endif
+        ifndef BUILD_ARCH
+            BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
+        endif
 endif
 
 # default is avr
@@ -557,7 +557,7 @@ ifndef LIB_DIRS
 # Step 1: Gather the primary directories
 
 ifdef THIRD_PARTY_HARDWARE
-	PRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(THIRD_PARTY_HARDWARE)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
+        PRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(THIRD_PARTY_HARDWARE)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
 endif
 
 PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
