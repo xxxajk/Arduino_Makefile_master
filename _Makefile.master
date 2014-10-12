@@ -636,8 +636,8 @@ SKT_C_SRC = $(wildcard *.c)
 SKT_CXX_SRC = $(wildcard *.cpp)
 ALL_SKT_SRC = $(SKT_C_SRC) $(SKT_CXX_SRC)
 ifneq "$(strip $(SKT_C_SRC) $(SKT_CXX_SRC))" ""
-    SKT_C_OBJ = $(patsubst %.c,%.c.o,$(SKT_C_SRC))
-    SKT_CXX_OBJ = $(patsubst %.cpp,%.cpp.o,$(SKT_CXX_SRC))
+    SKT_C_OBJ = $(patsubst %.c,%_c.o,$(SKT_C_SRC))
+    SKT_CXX_OBJ = $(patsubst %.cpp,%_cpp.o,$(SKT_CXX_SRC))
     SKT_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(SKT_C_OBJ))
     SKT_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(SKT_CXX_OBJ))
     SKT_LINK_OBJS = $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS)
@@ -839,8 +839,8 @@ ifeq "$(BUILD_ARCH)" "arm-none-eabi"
 #
 # Hopefully Paul will fix this one day...
 #
-$(BUILD_DIR)/crt_mk2xx.o: $(BUILD_DIR)/core/mk20dx128.c.o
-	$(CP) $(BUILD_DIR)/core/mk20dx128.c.o $(BUILD_DIR)/crt_mk2xx.o
+$(BUILD_DIR)/crt_mk2xx.o: $(BUILD_DIR)/core/mk20dx128_c.o
+	$(CP) $(BUILD_DIR)/core/mk20dx128_c.o $(BUILD_DIR)/crt_mk2xx.o
 
 #
 # Add it to the deps.
