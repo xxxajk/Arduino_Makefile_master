@@ -312,6 +312,15 @@ ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/avr/boards.txt),)
         endif
     endif
     ifndef VARIANT
+        VARIANT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+        ifndef VARIANT
+            VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
+        endif
+        ifdef VARIANT
+            INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/avr/variants/$(VARIANT)
+        endif
+    endif
+    ifndef VARIANT
         $(error Unknown board '$(BOARD)')
     endif
 
