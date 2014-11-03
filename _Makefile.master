@@ -99,6 +99,11 @@
 #   TR           : The GNU or system tr utility
 
 
+#
+# TO-DO: Check if this file or calling Makefile has changed
+#
+
+
 ### Nothing below here should require editing. ###
 # Global configuration.
 
@@ -109,7 +114,7 @@ OPT_FLAGS ?= -Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -f
 
 ####
 #
-# TO-DO: autodiscover explicit paths to these utilities
+# TO-DO: autodiscover explicit paths to these utilities?
 #
 ####
 WHICH ?= which
@@ -125,6 +130,27 @@ CP ?= cp
 CUT ?= cut
 HEAD ?= head
 TR ?= tr
+READLINK ?= readlink
+BASENAME ?= basename
+
+
+define ruletemplate-compile-cxx
+$(1): $(2)
+	$$(compile-cxx)
+
+endef
+
+define ruletemplate-compile-c
+$(1): $(2)
+	$$(compile-cc)
+
+endef
+
+define uniqlist
+  $(eval seen :=)
+  $(foreach _,$1,$(if $(filter $_,${seen}),,$(eval seen += $_)))
+  ${seen}
+endef
 
 # Check for the required definitions.
 ifndef BOARD
@@ -170,7 +196,7 @@ endif
 
 # Platform-specific settings.
 ifeq "$(PLATFORM)" "SunOS"
-    define run-monitor
+    define monitor-target
         gnome-terminal -t '$(BOARD) $(CPORT)' \
         -e 'env -i tip -$(MON_SPEED) $(CPORT)' &
     endef
@@ -180,7 +206,7 @@ ifeq "$(PLATFORM)" "SunOS"
         endef
     endif
 else ifeq "$(PLATFORM)" "Linux"
-    define run-monitor
+    define monitor-target
         screen $(CPORT) $(MON_SPEED)
     endef
     ifeq "$(CPORT)" "$(PORT)"
@@ -190,7 +216,7 @@ else ifeq "$(PLATFORM)" "Linux"
     endif
 
 else ifeq "$(PLATFORM)" "Darwin"
-    define run-monitor
+    define monitor-target
         screen $(CPORT) $(MON_SPEED)
     endef
     ifeq "$(CPORT)" "$(PORT)"
@@ -206,8 +232,6 @@ endif
 SKETCH = $(notdir $(CURDIR))
 BUILD_PATH = build
 BUILD_DIR = $(BUILD_PATH)/$(BOARD)
-# Match patterns
-VPATH = $(LIB_DIRS)
 
 # Read revision from revisions.txt.
 ifndef ARD_REV
@@ -543,7 +567,6 @@ endif
 endif
 endif
 
-ifndef LIB_DIRS
 
 # Automatically add user libraries and Arduino libraries. 
 # Note: This code is dumb! It does not follow conditionals in the code.
@@ -557,33 +580,51 @@ ifndef LIB_DIRS
 # Step 1: Gather the primary directories
 
 ifdef THIRD_PARTY_HARDWARE
-        PRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(THIRD_PARTY_HARDWARE)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
+        PPRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(THIRD_PARTY_HARDWARE)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
 endif
 
-PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
-PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
-PRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(ARD_HOME)/hardware/arduino/$(BUILD_ARCH)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) -L ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) -L $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) -L $(ARD_HOME)/hardware/arduino/$(BUILD_ARCH)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
 
-# Step 2: Gather any 'utility' subdirectories. 
-# This stupidity brought to you by the developers of the Arduino 'IDE', and 
-# by the library developers that don't know how to use include properly.
-UTLLIB_DIRS=$(shell for i in $(PRILIB_DIRS) ; { $(FIND) $$i -name 'utility' -print ; } )
+
 
 # Gather all arch subdirectories as well
-ARCH_DIRS=$(shell for i in $(PRILIB_DIRS) ; { $(FIND) $$i -name $(BUILD_ARCH) -print ; } )
+ARCH_DIRS=$(shell for i in $(PPRILIB_DIRS) ; { $(FIND) $$i -name $(BUILD_ARCH) -print ; } )
 
-# Step 3: Combine everything
-LIB_DIRS = $(PRILIB_DIRS) $(UTLLIB_DIRS) $(ARCH_DIRS)
+# Step 2: Combine everything
+PVLIB_DIRS = $(PPRILIB_DIRS)
+LIB_DIRS = $(INTERNAL_LIB_DIRS) $(ARCH_DIRS) 
 
-endif
 
-# These always should come LAST so that user libraries may over-ride
-# This is how the IDE does it too.
-LIB_DIRS += $(INTERNAL_LIB_DIRS)
+#
+# Step 3: Weed out duplicate libraries based on pathname
+#
+PPBLIB_DIRS = $(shell for i in $(PVLIB_DIRS) ; { $(BASENAME) $$i ; } )
+PBLIB_DIRS = $(strip $(call uniqlist,$(PPBLIB_DIRS)))
+#$(info Libraries used: $(PBLIB_DIRS))
+PWLIB_DIRS = $(shell for i in $(PBLIB_DIRS) ; { echo $(PVLIB_DIRS) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -m 1 -e $$i ; } )
+#$(info Libraries used: $(PWLIB_DIRS))
+
+#
+# Step 3b: Get the full pathname
+#
+LIB_DIRS += $(shell for i in $(PWLIB_DIRS) ; { $(READLINK) -f $$i ;} )
+
+# Step 4: Gather any 'utility' subdirectories. 
+# This stupidity brought to you by the developers of the Arduino 'IDE', and 
+# by the library developers that don't know how to use include properly.
+UTLLIB_DIRS = $(shell for i in $(LIB_DIRS) ; { $(FIND) $$i -name 'utility' -print ; } )
+
+LIBDIRS = $(LIB_DIRS) $(UTLLIB_DIRS) 
+#$(info Library directories: $(LIBDIRS))
 
 # Compiler flags.
 INC_FLAGS = \
-    -I./ $(addprefix -I,$(LIB_DIRS)) $(addprefix -I,$(INC_DIRS)) -I$(ARD_SRC_DIR)
+     -I$(ARD_SRC_DIR) $(addprefix -I,$(LIBDIRS)) $(addprefix -I,$(INC_DIRS))
+
+#$(warning INC_FLAGS: $(INC_FLAGS))
+
 
 ifdef CPU
 ARD_MCP += -mcpu=$(CPU)
@@ -592,59 +633,78 @@ ARD_MCP += -mmcu=$(MCU)
 endif
 
 ARD_FLAGS += -DF_CPU=$(F_CPU) -DARDUINO=$(ARD_REV) $(ARD_MCP)
+BASE_FLAGS = $(OPT_FLAGS) -g -w $(EXTRA_FLAGS) $(INC_FLAGS) $(ARD_FLAGS) -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion
+C_CXX_FLAGS = -Wa,-adhlns=$*.lst $(BASE_FLAGS)
 
-C_CXX_FLAGS = -g -w -Wa,-adhlns=$(@D)/$*.lst $(EXTRA_FLAGS) -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion
-
-C_FLAGS = -x c \
-    -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration $(C_CXX_FLAGS) $(EXT_C_FLAGS)
-
-CXX_FLAGS = -x c++ \
-    $(C_CXX_FLAGS) $(EXT_CPP_FLAGS)
+CXX_FLAGS = -x c++ $(C_CXX_FLAGS) $(EXT_CPP_FLAGS)
+INO_FLAGS = -x c++ -Wa,-adhlns=$(@D)/$*.lst $(BASE_FLAGS) $(EXT_CPP_FLAGS)
+C_FLAGS = -x c -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration $(C_CXX_FLAGS) $(EXT_C_FLAGS)
+SKT_C_FLAGS = -x c -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa,-adhlns=$(@D)/$*.lst $(BASE_FLAGS) $(EXT_C_FLAGS)
 
 # Build parameters.
 IMAGE = $(BUILD_DIR)/$(SKETCH)
 
+all: alldirs $(IMAGE).hex
+
 # core sources
-ARD_C_SRC = $(wildcard $(ARD_SRC_DIR)/*.c)
-ARD_CXX_SRC = $(wildcard $(ARD_SRC_DIR)/*.cpp)
-ALL_ARD_SRC = $(ARD_C_SRC) $(ARD_CXX_SRC)
-ARD_C_OBJ = $(patsubst %.c,%_c.o,$(notdir $(ARD_C_SRC)))
-ARD_CXX_OBJ = $(patsubst %.cpp,%_cpp.o,$(notdir $(ARD_CXX_SRC)))
-ARD_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/core/%,$(notdir $(ARD_C_OBJ)))
-ARD_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/core/%,$(notdir $(ARD_CXX_OBJ)))
-ALL_CORE_OBJS = $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS)
+ARD_C_SRC := $(strip $(wildcard $(ARD_SRC_DIR)/*.c))
+#$(info $(ARD_C_SRC))
+ARD_CXX_SRC := $(strip $(wildcard $(ARD_SRC_DIR)/*.cpp))
+#$(info $(ARD_CXX_SRC))
+ALL_ARD_SRC := $(strip $(ARD_C_SRC) $(ARD_CXX_SRC))
+#$(info $(ALL_ARD_SRC))
+ARD_C_OBJ := $(strip $(patsubst %.c,%_c.o,$(notdir $(ARD_C_SRC))))
+ARD_CXX_OBJ := $(strip $(patsubst %.cpp,%_cpp.o,$(notdir $(ARD_CXX_SRC))))
+ARD_C_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/core_/%,$(notdir $(ARD_C_OBJ)))
+ARD_CXX_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/core_/%,$(notdir $(ARD_CXX_OBJ)))
+ALL_CORE_OBJS := $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS)
+#$(info $(ALL_CORE_OBJS))
+
+$(foreach x,$(ARD_C_SRC),$(eval $(call ruletemplate-compile-c,$(BUILD_DIR)/core_/$(notdir $(strip $(patsubst %.c,%_c.o,$(strip $(x))))),$(strip $(x)))))
+
+$(foreach x,$(ARD_CXX_SRC),$(eval $(call ruletemplate-compile-cxx,$(BUILD_DIR)/core_/$(notdir $(strip $(patsubst %.cpp,%_cpp.o,$(strip $(x))))),$(strip $(x)))))
+
 
 # library sources
-LIB_C_SRC = $(foreach ld,$(LIB_DIRS),$(wildcard $(ld)/*.c))
-LIB_CXX_SRC = $(foreach ld,$(LIB_DIRS),$(wildcard $(ld)/*.cpp))
-ALL_LIB_SRC = $(LIB_C_SRC) $(LIB_CXX_SRC)
+LIB_C_SRC := $(foreach ld,$(LIBDIRS),$(wildcard $(ld)/*.c))
+LIB_CXX_SRC := $(foreach ld,$(LIBDIRS),$(wildcard $(ld)/*.cpp))
+ALL_LIB_SRC := $(LIB_C_SRC) $(LIB_CXX_SRC)
+#$(info $(ALL_LIB_SRC))
 ifneq "$(strip $(LIB_C_SRC) $(LIB_CXX_SRC))" ""
-    LIB_C_OBJ = $(patsubst %.c,%_c.o,$(notdir $(LIB_C_SRC)))
-    LIB_CXX_OBJ = $(patsubst %.cpp,%_cpp.o,$(notdir $(LIB_CXX_SRC)))
-    LIB_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(LIB_C_OBJ)))
-    LIB_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(notdir $(LIB_CXX_OBJ)))
-    ALL_LIB_OBJS = $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS)
+    LIB_C_OBJ := $(strip $(patsubst %.c,%_c.o,$(LIB_C_SRC)))
+    LIB_CXX_OBJ := $(strip $(patsubst %.cpp,%_cpp.o,$(LIB_CXX_SRC)))
+    LIB_C_LINK_OBJS := $(strip $(foreach var,$(PBLIB_DIRS),$(patsubst %,$(BUILD_DIR)/$(var)_/%,$(notdir $(shell echo $(LIB_C_OBJ) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/')))))
+    #$(info $(LIB_C_LINK_OBJS))
+    #$(info $(LIB_C_LINK_LSTS))
+    LIB_CXX_LINK_OBJS := $(strip $(foreach var,$(PBLIB_DIRS),$(patsubst %,$(BUILD_DIR)/$(var)_/%,$(notdir $(shell echo $(LIB_CXX_OBJ) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/')))))
+    ALL_LIB_OBJS := $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS)
+    ALL_LIB_BDIR := $(strip $(patsubst %,$(BUILD_DIR)/%_,$(PBLIB_DIRS)))
+    $(foreach var,$(PBLIB_DIRS),$(foreach x,$(shell echo $(LIB_C_SRC) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/'),$(eval $(call ruletemplate-compile-c,$(BUILD_DIR)/$(var)_/$(notdir $(strip $(patsubst %.c,%_c.o,$(strip $(x))))),$(strip $(x))))))
+    $(foreach var,$(PBLIB_DIRS),$(foreach x,$(shell echo $(LIB_CXX_SRC) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/'),$(eval $(call ruletemplate-compile-cxx,$(BUILD_DIR)/$(var)_/$(notdir $(strip $(patsubst %.cpp,%_cpp.o,$(strip $(x))))),$(strip $(x))))))
+    ALL_LIB_ARS := $(foreach var,$(PBLIB_DIRS),$(BUILD_DIR)/$(var)_/libA$(var)_.a)
+    ALL_LIB_LINKDIR := $(foreach var,$(PBLIB_DIRS),-L$(BUILD_DIR)/$(var)_)
+    ALL_LIB_LINKED := $(foreach var,$(PBLIB_DIRS),-lA$(var)_)
 endif
 
 
 # Sketch INO source. FAIL on > 1 .ino
-SKT_PDE_SRC = $(wildcard *.ino)
-SKT_PDE_OBJ = $(BUILD_DIR)/$(SKETCH)_ino.o
+SKT_PDE_SRC := $(wildcard *.ino)
+SKT_PDE_OBJ := $(BUILD_DIR)/$(SKETCH)_ino.o
 
 # Sketch C and C++ source.
-SKT_C_SRC = $(wildcard *.c)
-SKT_CXX_SRC = $(wildcard *.cpp)
-ALL_SKT_SRC = $(SKT_C_SRC) $(SKT_CXX_SRC)
+SKT_C_SRC := $(wildcard *.c)
+SKT_CXX_SRC := $(wildcard *.cpp)
+ALL_SKT_SRC := $(SKT_C_SRC) $(SKT_CXX_SRC)
 ifneq "$(strip $(SKT_C_SRC) $(SKT_CXX_SRC))" ""
-    SKT_C_OBJ = $(patsubst %.c,%_c.o,$(SKT_C_SRC))
-    SKT_CXX_OBJ = $(patsubst %.cpp,%_cpp.o,$(SKT_CXX_SRC))
-    SKT_C_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(SKT_C_OBJ))
-    SKT_CXX_LINK_OBJS = $(patsubst %,$(BUILD_DIR)/%,$(SKT_CXX_OBJ))
-    SKT_LINK_OBJS = $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS)
+    SKT_C_OBJ := $(patsubst %.c,%_c.o,$(SKT_C_SRC))
+    SKT_CXX_OBJ := $(patsubst %.cpp,%_cpp.o,$(SKT_CXX_SRC))
+    SKT_C_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/%,$(SKT_C_OBJ))
+    SKT_CXX_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/%,$(SKT_CXX_OBJ))
+    SKT_LINK_OBJS := $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS)
 endif
 
 # Match patterns
-VPATH = $(LIB_DIRS)
+VPATH = $(LIBDIRS)
 
 ifdef BOARD_SUB
     USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
@@ -668,40 +728,36 @@ define show_burn_info
     $(SIZE) -B $(IMAGE).elf
 endef
 endif
+
 define build-msg
     @echo -n 'Building "$(@)"... '
 endef
 
-define run-cc
+define compile-cc
     $(build-msg)
-    @$(CC) -c $(C_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
-        -MMD $< -o $(@)
-    @$(MV) $(@D)/$*.lst $(@D)/$*_c.lst
-    @$(CXXFILT) < $(@D)/$*_c.lst > $(@D)/$*_c.lst.tmp
-    @$(MV) $(@D)/$*_c.lst.tmp $(@D)/$*_c.lst
-    @$(CP) $(@D)/$*_c.d $(@D)/$*_c.P
-    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_c.P >> $(@D)/$*_c.d
-    @$(RM) -f $(@D)/$*_c.P
+    @$(CC) -c $(C_FLAGS) -MMD $< -o $(@)
+    @$(CXXFILT) < $*.lst > $*.lst.tmp
+    @$(MV) $*.lst.tmp $*.lst
+    @$(CP) $*.d $*.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d
+    @$(RM) -f $*.P
     @echo
 endef
 
-define run-cxx
+define compile-cxx
     $(build-msg)
-    @$(CXX) -c $(CXX_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
-        -MMD $< -o $(@)
-    @$(MV) $(@D)/$*.lst $(@D)/$*_cpp.lst
-    @$(CXXFILT) < $(@D)/$*_cpp.lst > $(@D)/$*_cpp.lst.tmp
-    @$(MV) $(@D)/$*_cpp.lst.tmp $(@D)/$*_cpp.lst
-    @$(CP) $(@D)/$*_cpp.d $(@D)/$*_cpp.P
-    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_cpp.P >> $(@D)/$*_cpp.d
-    @$(RM) -f $(@D)/$*_cpp.P
+    @$(CXX) -c $(CXX_FLAGS) -MMD $< -o $(@)
+    @$(CXXFILT) < $*.lst > $*.lst.tmp
+    @$(MV) $*.lst.tmp $*.lst
+    @$(CP) $*.d $*.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d
+    @$(RM) -f $*.P
     @echo
 endef
 
-define run-cxx-ino
+define compile-cxx-ino
     $(build-msg)
-    @$(CXX) -c $(CXX_FLAGS) $(OPT_FLAGS) $(ARD_FLAGS) $(INC_FLAGS) \
-        -MMD $< -o $(@)
+    @$(CXX) -c $(INO_FLAGS) -MMD $< -o $(@)
     @$(MV) $(@D)/$*.lst $(@D)/$*_ino.lst
     @$(CXXFILT) < $(@D)/$*_ino.lst > $(@D)/$*_ino.lst.tmp
     @$(MV) $(@D)/$*_ino.lst.tmp $(@D)/$*_ino.lst
@@ -711,14 +767,44 @@ define run-cxx-ino
     @echo
 endef
 
+define compile-cxx-skt
+    $(build-msg)
+    @$(CXX) -c $(INO_FLAGS) -MMD $< -o $(@)
+    @$(MV) $(@D)/$*.lst $(@D)/$*_cpp.lst
+    @$(CXXFILT) < $(@D)/$*_cpp.lst > $(@D)/$*_cpp.lst.tmp
+    @$(MV) $(@D)/$*_cpp.lst.tmp $(@D)/$*_cpp.lst
+    @$(CP) $(@D)/$*_cpp.d $(@D)/$*_cpp.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_cpp.P >> $(@D)/$*_cpp.d
+    @$(RM) -f $(@D)/$*_cpp.P
+    @echo
+endef
+
+define compile-cc-skt
+    $(build-msg)
+    @$(CC) -c $(SKT_C_FLAGS) -MMD $< -o $(@)
+    @$(MV) $(@D)/$*.lst $(@D)/$*_c.lst
+    @$(CXXFILT) < $(@D)/$*_c.lst > $(@D)/$*_c.lst.tmp
+    @$(MV) $(@D)/$*_c.lst.tmp $(@D)/$*_c.lst
+    @$(CP) $(@D)/$*_c.d $(@D)/$*_c.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_c.P >> $(@D)/$*_c.d
+    @$(RM) -f $(@D)/$*_c.P
+    @echo
+endef
+
+define run-ar
+    $(build-msg)
+    @$(AR) rcs $@ $(wildcard $(dir $@)/*.o)
+    @echo
+endef
+
 ifeq "$(PROGRAMMER)" "halfkay"
-    define run-uploader
+    define upload-hex
         $(TEENSY_LOADER_CLI) -mmcu=$(CPU_MCU) -v -w $(IMAGE).hex
         sleep 4
     endef
 else ifeq "$(PROGRAMMER)" "GDB"
     ifneq ($(wildcard $(USED_BIN)/$(USED_TARGET)-gdb),)
-        define run-uploader 
+        define upload-hex 
             @echo 'file $(IMAGE).elf' > $(IMAGE).upload
             @echo 'target remote $(PORT)' >> $(IMAGE).upload
             @echo 'monitor reset init' >> $(IMAGE).upload
@@ -729,7 +815,7 @@ else ifeq "$(PROGRAMMER)" "GDB"
             $(USED_BIN)/$(USED_TARGET)-gdb -n -batch -x $(IMAGE).upload
         endef
     else
-        define run-uploader 
+        define upload-hex 
             @echo 'file $(IMAGE).elf' > $(IMAGE).upload
             @echo 'target remote $(PORT)' >> $(IMAGE).upload
             @echo 'monitor reset init' >> $(IMAGE).upload
@@ -748,29 +834,21 @@ else ifeq "$(USE_1200BPS_TOUCH)" "true"
         STTY_ARGS := -F $(PORT) 1200
     endif
 
-    define run-uploader
+    define upload-hex
         stty $(STTY_ARGS)
         sleep 2
         $(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
     endef
 
 else
-    define run-uploader
+    define upload-hex
         $(AVRDUDE) -V -C$(AVRDUDE_CONF) -p$(MCU) -c$(PROGRAMMER) -P$(PORT) -b$(UPLOAD_SPEED) -D -Uflash:w:$(IMAGE).hex:i
     endef
 endif
 
-define run-ar
-    $(build-msg)
-    @$(AR) rcs $@ $?
-    @echo
-endef
+
 
 # Rules.
-.PHONY: all squeeky clean upload monitor upload_monitor upmonitor
-
-all: $(BUILD_DIR)/core $(IMAGE).hex
-
 
 clean:
 	@echo -n "Cleaning... "
@@ -785,39 +863,42 @@ squeeky: clean
 	@$(RM) -fr $(BUILD_PATH)
 	@sync
 
-$(BUILD_DIR)/core:
+upload: all
+	$(kill-monitor)
+	$(upload-hex)
+
+monitor:
+	$(kill-monitor)
+	$(monitor-target)
+
+upload_monitor: upload monitor
+
+upmonitor: upload_monitor
+
+upmon: upmonitor
+
+
+$(BUILD_PATH):
 	@$(MKDIR) $@
 
-$(BUILD_DIR)/%_ino.o: %.ino
-	$(run-cxx-ino)
-#
-# Important! 
-# We do not want VPATH to interfere, thus this rule.
-#
-$(BUILD_DIR)/core/%_c.o: $(ARD_SRC_DIR)/%.c
-	$(run-cc)
+$(BUILD_DIR): $(BUILD_PATH)
+	@$(MKDIR) $@
 
-#
-# Important! 
-# We do not want VPATH to interfere, thus this rule.
-#
-$(BUILD_DIR)/core/%_cpp.o: $(ARD_SRC_DIR)/%.cpp
-	$(run-cxx)
+$(BUILD_DIR)/%_: $(BUILD_DIR)
+	@$(MKDIR) $@
+
+
+$(BUILD_DIR)/%_ino.o: %.ino
+	$(compile-cxx-ino)
 
 $(BUILD_DIR)/%_c.o: %.c
-	$(run-cc)
+	$(compile-cc-skt)
 
 $(BUILD_DIR)/%_cpp.o: %.cpp
-	$(run-cxx)
+	$(compile-cxx-skt)
 
-$(BUILD_DIR)/core/libAcore.a: $(ALL_CORE_OBJS)
-	$(run-ar)
 
-#
-# TO-DO: Compile libraries separately, once
-#
-$(BUILD_DIR)/libAuser.a: $(ALL_LIB_OBJS)
-	$(run-ar)
+
 
 ############################################################################
 ############################################################################
@@ -839,13 +920,13 @@ ifeq "$(BUILD_ARCH)" "arm-none-eabi"
 #
 # Hopefully Paul will fix this one day...
 #
-$(BUILD_DIR)/crt_mk2xx.o: $(BUILD_DIR)/core/mk20dx128_c.o
-	$(CP) $(BUILD_DIR)/core/mk20dx128_c.o $(BUILD_DIR)/crt_mk2xx.o
+$(BUILD_DIR)/core_/crt_mk2xx.o: $(BUILD_DIR)/core_/mk20dx128_c.o
+	$(CP) $(BUILD_DIR)/core_/mk20dx128_c.o $(BUILD_DIR)/core_/crt_mk2xx.o
 
 #
 # Add it to the deps.
 #
-EXT_LINK_EXTRA = $(BUILD_DIR)/crt_mk2xx.o
+EXT_LINK_EXTRA = $(BUILD_DIR)/core_/crt_mk2xx.o
 endif
 
 ############################################################################
@@ -853,20 +934,39 @@ endif
 ############################################################################
 
 
+EVERY_DIR = $(BUILD_DIR) $(BUILD_DIR)/core_ $(ALL_LIB_BDIR)
+EVERY_O = $(ALL_LIB_OBJS) $(ALL_CORE_OBJS) 
+PRIMARY_A = $(BUILD_DIR)/core_/libAcore_.a $(BUILD_DIR)/libAuser_.a
+
+# include deps
+-include $(SKT_PDE_OBJ:.o=.d)
+-include $(SKT_LINK_OBJ:.o=.d)
+-include $(EVERY_O:.o=.d)
+
+alldirs: $(EVERY_DIR)
+
+
+.PHONY: all squeeky clean upload monitor upload_monitor upmonitor alldirs allobjects archives
 #
-# TO-DO: Check if this file or Makefile has changed, and if so, run clean, and re-compile everything
+# All archives will attempt update if any object changes anywhere.
+# ar actually manages anything that is really changed.
 #
-$(IMAGE).hex: $(BUILD_DIR) $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) $(BUILD_DIR)/core/libAcore.a $(BUILD_DIR)/libAuser.a $(EXT_LINK_EXTRA)
-	@$(CC) -Os \
+$(BUILD_DIR)/%_.a: $(EVERY_O) 
+	$(run-ar)
+
+$(IMAGE).hex: $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) $(EVERY_O) $(PRIMARY_A) $(ALL_LIB_ARS) $(EXT_LINK_EXTRA)
+	$(CC) -Os \
 	    $(GCS) \
 	    $(ARD_MCP) $(EXT_LINK_FLAGS) \
 	    $(EXT_LINK_T_FLAGS) \
 	    $(EXT_LINK_EXTRA) \
 	    $(SKT_PDE_OBJ) \
             $(SKT_LINK_OBJS) \
-	    -L$(BUILD_DIR) -L$(BUILD_DIR)/core \
-	    -lAuser \
-	    -lAcore \
+	    -L$(BUILD_DIR) -L$(BUILD_DIR)/core_ \
+	    $(ALL_LIB_LINKDIR) \
+	    -lAuser_ \
+	    $(ALL_LIB_LINKED) \
+	    -lAcore_ \
 	    $(EXT_LIBS) \
 	    -lm \
 	    -o $(IMAGE).elf 
@@ -877,20 +977,3 @@ $(IMAGE).hex: $(BUILD_DIR) $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) $(BUILD_DIR)/core/lib
 	@$(OBJDUMP) -h -S $(IMAGE).elf | $(CXXFILT) -t > $(IMAGE).lst
 	@$(show_burn_info)
 
-
-upload: all
-	$(kill-monitor)
-	$(run-uploader)
-
-monitor:
-	$(kill-monitor)
-	$(run-monitor)
-
-upload_monitor: upload monitor
-
-upmonitor: upload_monitor
-
-upmon: upmonitor
-
-# include deps
--include $(wildcard $(BUILD_DIR)/*.d))

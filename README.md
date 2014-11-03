@@ -13,4 +13,8 @@ NOTE:
 Features:
   Supports standard avr Arduino boards
   Supports the Teensy development boards from pjrc.com
+
+NEW:
+  Faster compiles.
+  Libraries are now each an archive, seperately.
 ```
