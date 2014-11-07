@@ -98,25 +98,6 @@
 #   HEAD         : The GNU or system head utility
 #   TR           : The GNU or system tr utility
 
-
-#
-# TO-DO: Check if this file or calling Makefile has changed
-#
-
-
-### Nothing below here should require editing. ###
-# Global configuration.
-
-MON_SPEED ?= 115200
-GCS ?= -Wl,--relax,--gc-sections
-# Optimiser flags.
-OPT_FLAGS ?= -Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD
-
-####
-#
-# TO-DO: autodiscover explicit paths to these utilities?
-#
-####
 WHICH ?= which
 FIND ?= find
 MKDIR ?= mkdir -p
@@ -132,6 +113,42 @@ HEAD ?= head
 TR ?= tr
 READLINK ?= readlink
 BASENAME ?= basename
+
+#
+# TO-DO: Check if this file or calling Makefile has changed
+#
+
+### Nothing below here should require editing. ###
+# Global configuration.
+
+#
+# Working shell list:
+# ash, bash, ksh
+WORKING_SH = /bin/ash /bin/bash /bin/ksh
+#
+# Not working, and may never work
+# zsh, csh, tcsh, rksh
+#
+BROKEN_SH = /bin/zsh /bin/csh /bin/tcsh /bin/rksh
+REAL_SH=$(strip $(shell $(READLINK) -f $(SHELL)))
+GOOD_SH=$(findstring $(REAL_SH),$(WORKING_SH))
+BAD_SH=$(findstring $(REAL_SH),$(BROKEN_SH))
+
+ifeq ($(strip $(GOOD_SH)),)
+ifeq ($(strip $(BAD_SH)),)
+$(warning Your shell $(REAL_SH) is unknown, please report on github if it works or not. )
+else
+$(info Your shell $(REAL_SH) is broken, please use another shell)
+$(info Known working shells are $(WORKING_SH))
+$(error BROKEN SHELL)
+endif
+endif
+
+MON_SPEED ?= 115200
+GCS ?= -Wl,--relax,--gc-sections
+# Optimiser flags.
+OPT_FLAGS ?= -Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD
+
 
 
 define ruletemplate-compile-cxx
@@ -583,23 +600,26 @@ endif
 #       The effect of this is that it may compile unwanted code.
 #       It does seem to work OK dispite this.
 #
+# TO-DO: Fix stupidity by using the pre-processor.
+#$(shell $(FIND) . -name '*.c' -exec ... )
+#$(shell $(FIND) . \( -name '*.cpp' -o -name '*.ino' \) -exec ... )
+#
 # TO-DO: Scan user libraries for interdependence?
 # TO-DO: Scan Arduino libraries for interdependence?
 
 # Step 1: Gather the primary directories
 
+
 ifdef THIRD_PARTY_HARDWARE
-        PPRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) $(THIRD_PARTY_HARDWARE)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
+        PPRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; do $(FIND) $(THIRD_PARTY_HARDWARE)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
 endif
 
-PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) -L ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
-PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) -L $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
-PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; { $(FIND) -L $(ARD_HOME)/hardware/arduino/$(BUILD_ARCH)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ;} 2>/dev/null | $(UNIQ) )
-
-
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g' | $(SED) 's/.*<//g' ` ; do $(FIND) -L ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ; done  2>/dev/null | $(UNIQ) )
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; do $(FIND) -L $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; do $(FIND) -L $(ARD_HOME)/hardware/arduino/$(BUILD_ARCH)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
 
 # Gather all arch subdirectories as well
-ARCH_DIRS=$(shell for i in $(PPRILIB_DIRS) ; { $(FIND) $$i -name $(BUILD_ARCH) -print ; } )
+ARCH_DIRS=$(shell for i in $(PPRILIB_DIRS) ; do $(FIND) $$i -name $(BUILD_ARCH) -print ; done )
 
 # Step 2: Combine everything
 PVLIB_DIRS = $(PPRILIB_DIRS)
@@ -609,21 +629,21 @@ LIB_DIRS = $(INTERNAL_LIB_DIRS) $(ARCH_DIRS)
 #
 # Step 3: Weed out duplicate libraries based on pathname
 #
-PPBLIB_DIRS = $(shell for i in $(PVLIB_DIRS) ; { $(BASENAME) $$i ; } )
+PPBLIB_DIRS = $(shell for i in $(PVLIB_DIRS) ; do $(BASENAME) $$i ; done )
 PBLIB_DIRS = $(strip $(call uniqlist,$(PPBLIB_DIRS)))
 #$(info Libraries used: $(PBLIB_DIRS))
-PWLIB_DIRS = $(shell for i in $(PBLIB_DIRS) ; { echo $(PVLIB_DIRS) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -m 1 -e $$i ; } )
+PWLIB_DIRS = $(shell for i in $(PBLIB_DIRS) ; do echo $(PVLIB_DIRS) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -m 1 -e $$i ; done )
 #$(info Libraries used: $(PWLIB_DIRS))
 
 #
 # Step 3b: Get the full pathname
 #
-LIB_DIRS += $(shell for i in $(PWLIB_DIRS) ; { $(READLINK) -f $$i ;} )
+LIB_DIRS += $(shell for i in $(PWLIB_DIRS) ; do $(READLINK) -f $$i ; done )
 
 # Step 4: Gather any 'utility' subdirectories. 
 # This stupidity brought to you by the developers of the Arduino 'IDE', and 
 # by the library developers that don't know how to use include properly.
-UTLLIB_DIRS = $(shell for i in $(LIB_DIRS) ; { $(FIND) $$i -name 'utility' -print ; } )
+UTLLIB_DIRS = $(shell for i in $(LIB_DIRS) ; do $(FIND) $$i -name 'utility' -print ; done )
 
 LIBDIRS = $(LIB_DIRS) $(UTLLIB_DIRS) 
 #$(info Library directories: $(LIBDIRS))
