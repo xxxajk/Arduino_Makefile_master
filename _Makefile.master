@@ -123,14 +123,19 @@ BASENAME ?= basename
 
 #
 # Working shell list:
-# ash, bash, ksh
 WORKING_SH = /bin/ash /bin/bash /bin/ksh
+
 #
 # Not working, and may never work
-# zsh, csh, tcsh, rksh
-#
 BROKEN_SH = /bin/zsh /bin/csh /bin/tcsh /bin/rksh
+
 REAL_SH=$(strip $(shell $(READLINK) -f $(SHELL)))
+ifneq ($(strip $(findstring $(SHELL),$(BROKEN_SH))),)
+$(info Your shell $(SHELL) aka $(REAL_SH) is broken, please use another shell)
+$(info Known working shells are $(WORKING_SH))
+$(error BROKEN SHELL)
+endif
+
 GOOD_SH=$(findstring $(REAL_SH),$(WORKING_SH))
 BAD_SH=$(findstring $(REAL_SH),$(BROKEN_SH))
 
