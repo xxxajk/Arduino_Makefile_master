@@ -1,5 +1,5 @@
 #
-# Version 1.0.0
+# Version 1.6.0
 #
 # This work is based on the following original.
 # it includes many fixes and enhancements.
@@ -40,23 +40,23 @@
 # Examples:
 #
 # ----------
-# BOARD = mega
-# PORT = /dev/ACM0
+# BOARD =mega
+# PORT =/dev/ACM0
 # include ../Arduino_Makefile_master/Makefile.master
 # ----------
 #
 # ----------
-# BOARD = mega
-# PORT = /dev/ACM0
-# CPORT = /dev/ACM1
+# BOARD =mega
+# PORT =/dev/ACM0
+# CPORT =/dev/ACM1
 # include ../Arduino_Makefile_master/Makefile.master
 # ----------
 #
 # ----------
-# BOARD = world-domination
-# PORT = localhost:4242
-# CPORT = /dev/ACM0
-# THIRD_PARTY_HARDWARE = ~/hardware/evil_dev_kit
+# BOARD =world-domination
+# PORT =localhost:4242
+# CPORT =/dev/ACM0
+# THIRD_PARTY_HARDWARE =~/hardware/evil_dev_kit
 # include ../Arduino_Makefile_master/Makefile.master
 # ----------
 #
@@ -98,21 +98,22 @@
 #   HEAD         : The GNU or system head utility
 #   TR           : The GNU or system tr utility
 
-WHICH ?= which
-FIND ?= find
-MKDIR ?= mkdir -p
-RM ?= rm -fr
-MV ?= mv -f
-UNIQ ?= uniq
-DIRNAME ?= dirname
-SED ?= sed
-GREP ?= grep
-CP ?= cp
-CUT ?= cut
-HEAD ?= head
-TR ?= tr
-READLINK ?= readlink
-BASENAME ?= basename
+WHICH ?=which
+FIND ?=find
+MKDIR ?=mkdir -p
+RM ?=rm -fr
+MV ?=mv -f
+UNIQ ?=uniq
+DIRNAME ?=dirname
+SED ?=sed
+GREP ?=grep
+CP ?=cp
+CUT ?=cut
+HEAD ?=head
+TR ?=tr
+READLINK ?=readlink
+BASENAME ?=basename
+ECHO ?=echo
 
 #
 # TO-DO: Check if this file or calling Makefile has changed
@@ -120,14 +121,14 @@ BASENAME ?= basename
 
 ### Nothing below here should require editing. ###
 # Global configuration.
-
+$(info Gathering build parameters...)
 #
 # Working shell list:
-WORKING_SH = /bin/ash /bin/bash /bin/ksh
+WORKING_SH =/bin/ash /bin/bash /bin/ksh
 
 #
 # Not working, and may never work
-BROKEN_SH = /bin/zsh /bin/csh /bin/tcsh /bin/rksh
+BROKEN_SH =/bin/zsh /bin/csh /bin/tcsh /bin/rksh
 
 REAL_SH=$(strip $(shell $(READLINK) -f $(SHELL)))
 ifneq ($(strip $(findstring $(SHELL),$(BROKEN_SH))),)
@@ -149,12 +150,11 @@ $(error BROKEN SHELL)
 endif
 endif
 
-MON_SPEED ?= 115200
-GCS ?= -Wl,--relax,--gc-sections
+MON_SPEED ?=115200
+GCS ?=-Wl,--relax,--gc-sections
+
 # Optimiser flags.
-OPT_FLAGS ?= -Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD
-
-
+OPT_FLAGS ?=-Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD
 
 define ruletemplate-compile-cxx
 $(1): $(2)
@@ -183,21 +183,21 @@ ifndef PORT
     ifndef CPORT
         $(error PORT not defined)
     else
-        PORT = $(CPORT)
+        PORT =$(CPORT)
     endif
 endif
 
-CPORT ?= $(PORT)
+CPORT ?=$(PORT)
 
 # Set default values if ARD_HOME is not defined.
-PLATFORM = $(shell uname -s)
+PLATFORM =$(shell uname -s)
 ifndef ARD_HOME
     ifeq "$(PLATFORM)" "SunOS"
-        ARD_HOME = /opt/Arduino
+        ARD_HOME =/opt/Arduino
     else ifeq "$(PLATFORM)" "Linux"
-        ARD_HOME = $(shell $(DIRNAME) `$(WHICH) arduino 2> /dev/null || echo /opt/Arduino/arduino`)
+        ARD_HOME =$(shell $(DIRNAME) `$(WHICH) arduino 2> /dev/null || echo /opt/Arduino/arduino`)
     else ifeq "$(PLATFORM)" "Darwin"
-        ARD_HOME = /Applications/Arduino.app
+        ARD_HOME =/Applications/Arduino.app
     else
         $(error Please define ARD_HOME)
     endif
@@ -205,9 +205,9 @@ endif
 
 # Make it easier for Mac users, so they only have to define the path to the application.
 ifneq ($(wildcard $(ARD_HOME)/Contents/Resources/Java/hardware/tools/avr/bin/avrdude),)
-    ARD_HOME := $(ARD_HOME)/Contents/Resources/Java
+    ARD_HOME :=$(ARD_HOME)/Contents/Resources/Java
 else ifneq ($(wildcard $(ARD_HOME)/Contents/Java/hardware/tools/avr/bin/avrdude),)
-    ARD_HOME := $(ARD_HOME)/Contents/Java
+    ARD_HOME :=$(ARD_HOME)/Contents/Java
 endif
 
 
@@ -250,195 +250,231 @@ else
     $(error Unknown platform $(PLATFORM))
 endif
 
+
 # Standard macros.
-SKETCH = $(notdir $(CURDIR))
-BUILD_PATH = build
-BUILD_DIR = $(BUILD_PATH)/$(BOARD)
+SKETCH =$(notdir $(CURDIR))
+BUILD_PATH =build
 
-# Read revision from revisions.txt.
-ifndef ARD_REV
-    VERSION = $(shell $(SED) -n 's/ARDUINO \(.*\)/\1/p' < $(ARD_HOME)/revisions.txt | $(CUT) -d " " -f1 | $(HEAD) -n 1 | $(CUT) -d "-" -f1) # Extract version number - it is in the following format: ARDUINO x.x.x
-    ARD_REV = $(subst .,,$(VERSION)) # Remove punctuation marks
+ifdef BOARD_SUB
+BUILD_DIR =$(BUILD_PATH)/$(BOARD)-$(BOARD_SUB)
+else
+BUILD_DIR =$(BUILD_PATH)/$(BOARD)
 endif
-
-ifndef ARD_REV
-$(error Please define ARD_REV)
-endif
-
-# Automatically locate AVR and ARM tools.
-ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avr/bin/avrdude),)
-    AVR_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
-    ARM_BIN ?= $(ARD_HOME)/hardware/tools/arm-none-eabi/bin
-    AVRDUDE ?= $(AVR_BIN)/avrdude
-    AVRDUDE_CONF ?= $(ARD_HOME)/hardware/tools/avr/etc/avrdude.conf
-    TEENSY_LOADER_CLI ?= $(AVR_BIN)/teensy_loader_cli
-else ifneq ($(wildcard $(ARD_HOME)/hardware/tools/avrdude),)
-    AVR_BIN ?= $(ARD_HOME)/hardware/tools/avr/bin
-    ARM_BIN ?= $(ARD_HOME)/hardware/tools/arm-none-eabi/bin
-    AVRDUDE ?= $(ARD_HOME)/hardware/tools/avrdude
-    AVRDUDE_CONF ?= $(ARD_HOME)/hardware/tools/avrdude.conf
-    TEENSY_LOADER_CLI ?= $(ARD_HOME)/hardware/tools/teensy_loader_cli
-else ifneq ($(wildcard $(ARD_HOME)/build/linux/work/hardware/tools/avrdude),)
-    AVR_BIN ?= $(ARD_HOME)/build/linux/work/hardware/tools/avr/bin
-    ARM_BIN ?= $(ARD_HOME)/build/linux/work/hardware/tools/arm-none-eabi/bin
-    AVRDUDE ?= $(ARD_HOME)/build/linux/work/hardware/tools/avrdude
-    AVRDUDE_CONF ?= $(ARD_HOME)/build/linux/work/hardware/tools/avrdude.conf
-    TEENSY_LOADER_CLI ?= $(ARD_HOME)/build/linux/work/hardware/tools/teensy_loader_cli
-endif
-
 
 ifdef THIRD_PARTY_HARDWARE
-    TPH_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
+    TPH_BOARDS =$(THIRD_PARTY_HARDWARE)/boards.txt
 endif
 
-ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/avr/boards.txt),)
-    ARD_BOARDS = $(ARD_HOME)/hardware/arduino/avr/boards.txt
-    ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
-#
-#    Not supported yet!
-#
-    TEENSY_BOARDS = $(ARD_HOME)/hardware/teensy/boards.txt
-    TEENSY_BASE = $(ARD_HOME)/hardware/teensy/cores/
+ALL_BOARDS_TXT =$(strip $(TPH_BOARDS) $(shell $(FIND) $(ARD_HOME)/hardware -name boards.txt -print))
 
+# Find the correct boards.txt file 
+# The basename should be where the core files are
+# If this is blank, we can exit early.
+#
+
+
+#
+# Difficult ideas to implement that will be well worth the effort.
+#
+# TO-DO: Cache all gathered information. Needs to detect changed settings...
+# TO-DO: Cache object files per-build platform.
+#
+#
+
+
+ARD_BOARDS=$(shell $(GREP) $(ALL_BOARDS_TXT) -le '^$(BOARD)\.')
+
+ifneq ($(strip $(ARD_BOARDS)),)
     ifdef BOARD_SUB
-        ifdef TPH_BOARDS
-            VARIANT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(TPH_BOARDS))
-            ifndef VARIANT
-                VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(TPH_BOARDS))
-            endif
-            ifdef VARIANT
-                ARD_BOARDS = $(THIRD_PARTY_HARDWARE)/boards.txt
-                INTERNAL_LIB_DIRS += $(THIRD_PARTY_HARDWARE)/variants/$(VARIANT)
-                CORE := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(TPH_BOARDS))
-                ifndef CORE
-                    CORE = $(shell $(SED) -n 's/^$(BOARD)\.build\.core=\(.*\)/\1/p' < $(TPH_BOARDS))
-                endif
-                    ifeq "$(CORE)" "arduino:arduino" # Check if it is using the standard Arduino core - supported since 1.5.x
-                        ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/avr/cores/arduino
-                    else
-                        ARD_SRC_DIR = $(THIRD_PARTY_HARDWARE)/cores/$(CORE)
-                    endif
-                endif
-            endif
-        ifndef VARIANT
-            VARIANT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-            ifndef VARIANT
-                VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-            endif
-            ifdef VARIANT
-                INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/avr/variants/$(VARIANT)
-            endif
-        endif
-        ifndef VARIANT
-            $(error Unknown variant '$(BOARD_SUB)' for board  '$(BOARD)')
-        endif
+        VARIANT :=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
-    ifndef VARIANT
-        VARIANT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-        ifndef VARIANT
-            VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        ifdef VARIANT
-            INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/avr/variants/$(VARIANT)
-        endif
+    ifeq ($(strip $(VARIANT)),)
+        VARIANT :=$(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
     endif
-    ifndef VARIANT
-        $(error Unknown board '$(BOARD)')
-    endif
+else
+    #
+    # TO-DO: list all available BOARD with optional BOARD_SUB
+    #
+    $(error Board "$(BOARD)", not supported. Please check you are using the correct Arduino installation)
+endif
 
-else ifneq ($(wildcard $(ARD_HOME)/hardware/arduino/boards.txt),)
-    ARD_BOARDS = $(ARD_HOME)/hardware/arduino/boards.txt
-#
-# Not supported
-#
-    TEENSY_BOARDS = $(ARD_HOME)/hardware/teensy/boards.txt
-    TEENSY_BASE = $(ARD_HOME)/hardware/teensy/cores/
+ARD_SPEC =$(shell $(DIRNAME) $(ARD_BOARDS))
 
-    ARD_SRC_DIR = $(ARD_HOME)/hardware/arduino/cores/arduino
-    VARIANT = $(shell $(SED) -n 's/^$(BOARD)\.build\.variant=\(.*\)/\1/p' < $(ARD_BOARDS))
-    ifndef VARIANT
-        $(error Unknown board '$(BOARD)')
-    endif
-    INTERNAL_LIB_DIRS += $(ARD_HOME)/hardware/arduino/variants/$(VARIANT)
-else ifneq ($(wildcard $(ARD_HOME)/hardware/boards.txt),)
-    ARD_BOARDS = $(ARD_HOME)/hardware/boards.txt
-    ARD_SRC_DIR = $(ARD_HOME)/hardware/cores/arduino
+
+ifeq ($(strip $(ARD_VERSION)),)
+#
+# $(ARD_HOME)/lib/version.txt is the correct place to look, HOWEVER...
+# SOMETIMES the 'version' is fully non-numeric, e.g. 'nightly' etc.
+# In the case this fails, we try the last resort hack below, instead
+#
+ARD_VERSION =$(strip $(shell $(SED) -e '/^[0-9.]*.*/!d;s/^\([0-9.]*\).*/\1/' < $(ARD_HOME)/lib/version.txt))
+endif
+
+ifeq ($(strip $(ARD_VERSION)),)
+#
+# LAST RESORT HACK: Read version by parsing the 'revisions.txt' file.
+# Version is in the following format: ARDUINO x.x.x
+ARD_VERSION =$(shell $(SED) -e '/^ARDUINO/!d;s/^ARDUINO //;s/\([0-9.]*\).*/\1/;q' < $(ARD_HOME)/revisions.txt )
 endif
 
 
-ifndef ARD_BOARDS
-    $(error Can not locate boards.txt)
+ifeq ($(strip $(ARD_VERSION)),)
+$(error Please define ARD_VERSION . e.g. ARD_VERSION=1.0.6 )
 endif
 
-# Macros derived from boards.txt.
+ARD_WORDS =$(subst ., ,$(ARD_VERSION))
+ARD_MAJOR =$(word 1,$(ARD_WORDS))
+ARD_RAW_MINOR =$(word 2,$(ARD_WORDS))
+ARD_RAW_PATCH =$(word 3,$(ARD_WORDS))
+
+#
+# First, fix versioning stupidity, missing minor should be rare :-)
+#
+ifeq ($(strip $(ARD_RAW_MINOR)),)
+ARD_RAW_MINOR =0
+endif
+ifeq ($(strip $(ARD_RAW_PATCH)),)
+ARD_RAW_PATCH =0
+endif
+
+#
+#  Now for some screwy details. Arduino 1.6 and higher pads the version with zeros.
+#  We must detect this here, and pad
+#
+ARD_MA =$(ARD_MAJOR)$(ARD_RAW_MINOR)
+ifeq ($(ARD_MA),$(filter $(ARD_MA),10 11 12 13 14 15))
+# < 1.6, no padding
+ARD_MINOR =$(ARD_RAW_MINOR)
+ARD_PATCH=$(ARD_RAW_PATCH)
+else
+# >= 1.6, pad as needed.
+ifeq ($(ARD_RAW_MINOR),$(filter $(ARD_RAW_MINOR),0 1 2 3 4 5 6 7 8 9))
+ARD_MINOR = 0$(ARD_RAW_MINOR)
+else
+ARD_MINOR = $(ARD_RAW_MINOR)
+endif
+ifeq ($(ARD_RAW_PATCH),$(filter $(ARD_RAW_PATCH),0 1 2 3 4 5 6 7 8 9))
+ARD_PATCH =0$(ARD_RAW_PATCH)
+else
+ARD_PATCH =$(ARD_RAW_PATCH)
+endif
+endif
+
+ARD_MM =$(ARD_MAJOR)$(ARD_MINOR)
+ARD_REV =$(ARD_MAJOR)$(ARD_MINOR)$(ARD_PATCH)
+
+
+# Build parameters.
+IMAGE = $(BUILD_DIR)/$(SKETCH)
+
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+
+#
+# OLD Arduino
+# TO-DO: Clean up this mess, it is quite horrible, slow, and totally the wrong way.
+#
+ifeq ($(ARD_MM),$(filter $(ARD_MM),10 11 12 13 14))
 ifdef BOARD_SUB
-    MCU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
-    F_CPU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-    UPLOAD_SPEED := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
-    BUILD_BOARD := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
-    BOARD_EXTRA_FLAGS := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
+MCU ?=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+CPU ?=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^(BOARD)\..*\.$(BOARD_SUB)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+F_CPU ?=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^(BOARD)\..*\.$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+UPLOAD_SPEED ?=$(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+BUILD_BOARD ?=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+BOARD_EXTRA_FLAGED +=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
+EXT_C_FLAGS +=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.option[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.option[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+EXT_CPP_FLAGS +=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.cppoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS)) $(EXT_C_FLAGS)$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.cppoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS)) $(EXT_C_FLAGS)
+EXT_LINK_FLAGS +=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.linkoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.linkoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+EXT_LINK_T_FLAG :=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.linkscript=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.linkscript=\(.*\)/\1/p' < $(ARD_BOARDS))
+ifneq ($(strip $(EXT_LINK_T_FLAG)),)
+    EXT_LINK_T_FLAGS += -T$(ARD_SRC_DIR)/$(EXT_LINK_T_FLAG)
+endif
+EXT_LIBS +=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.additionalobject[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.additionalobject[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+USB_VID ?=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
+USB_PID ?=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
+USB_MANUFACTURER ?=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
+USB_PRODUCT ?=$(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/$(BOARD)\..*\.^$(BOARD_SUB)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
+ifeq ($(strip $(PROGRAMMER)),)
+PROGRAMMER =$(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+BUILD_ARCH +=$(strip $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS)) $(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS)) $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS)) $(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS)))
+BUILD_CORE = $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))$(shell $(SED) -n 's/^$(BOARD)\..*\.$(BOARD_SUB)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
-# Check if the board is part of a sub menu.
-ifndef MCU
-    MCU := $(shell $(SED) -n 's/^$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
+
+ifeq ($(strip $(MCU)),)
+MCU =$(shell $(SED) -n 's/^$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
-ifndef F_CPU
-    F_CPU := $(shell $(SED) -n 's/^$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
+ifeq ($(strip $(CPU)),)
+CPU =$(shell $(SED) -n 's/^$(BOARD)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
-ifndef UPLOAD_SPEED
-    UPLOAD_SPEED := $(shell $(SED) -n 's/^$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
+ifeq ($(strip $(F_CPU)),)
+F_CPU =$(shell $(SED) -n 's/^$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
-ifndef BUILD_BOARD
-    BUILD_BOARD := $(shell $(SED) -n 's/^$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+ifeq ($(strip $(UPLOAD_SPEED)),)
+UPLOAD_SPEED =$(shell $(SED) -n 's/^$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
-ifndef BOARD_EXTRA_FLAGS
-    BOARD_EXTRA_FLAGS := $(shell $(SED) -n 's/^$(BOARD)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
+ifeq ($(strip $(BUILD_BOARD)),)
+BUILD_BOARD =$(shell $(SED) -n 's/^$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+ifeq ($(strip $(USB_VID)),)
+USB_VID =$(shell $(SED) -n 's/^$(BOARD)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+ifeq ($(strip $(USB_PID)),)
+USB_PID =$(shell $(SED) -n 's/^$(BOARD)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+ifeq ($(strip $(USB_MANUFACTURER)),)
+USB_MANUFACTURER =$(shell $(SED) -n 's/^$(BOARD)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+ifeq ($(strip $(USB_PRODUCT)),)
+USB_PRODUCT =$(shell $(SED) -n 's/^$(BOARD)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+ifeq ($(strip $(PROGRAMMER)),)
+PROGRAMMER =$(shell $(SED) -n 's/^$(BOARD)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
+endif
+BUILD_ARCH +=$(strip $(shell $(SED) -n 's/^$(BOARD)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS)) $(shell $(SED) -n 's/^$(BOARD)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS)))
+ifeq ($(strip $(BUILD_CORE)),)
+BUILD_CORE = $(shell $(SED) -n 's/^$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
+BOARD_EXTRA_FLAGED +=$(shell $(SED) -n 's/^$(BOARD)\.build\.extra_flags=\(.*\)/\1/p' < $(ARD_BOARDS))
+EXT_C_FLAGS +=$(shell $(SED) -n 's/^$(BOARD)\.build\.option[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+EXT_CPP_FLAGS +=$(shell $(SED) -n 's/^$(BOARD)\.build\.cppoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS)) $(EXT_C_FLAGS)
+EXT_LINK_FLAGS +=$(shell $(SED) -n 's/^$(BOARD)\.build\.linkoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+EXT_LINK_T_FLAG :=$(shell $(SED) -n 's/^$(BOARD)\.build\.linkscript=\(.*\)/\1/p' < $(ARD_BOARDS))
+ifneq ($(strip $(EXT_LINK_T_FLAG)),)
+    EXT_LINK_T_FLAGS += -T$(ARD_SRC_DIR)/$(EXT_LINK_T_FLAG)
+endif
+EXT_LIBS += $(shell $(SED) -n 's/^$(BOARD)\.build\.additionalobject[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+ifeq ($(strip $(BUILD_CORE)),)
+BUILD_CORE =arduino
+endif
 
-# No board yet. Check for teensy boards.
-ifndef MCU
-    ifneq ($(wildcard $(TEENSY_BOARDS)),)
-        #
-        # Can be set to the following depending on the board: 
-        # USB_NONE, USB_SERIAL, USB_HID, USB_SERIAL_HID, USB_DISK
-        # USB_DISK_SDFLASH, USB_MIDI, USB_RAWHID or USB_FLIGHTSIM
-        # 
-        USB_BUILD_DEFINE ?= USB_SERIAL
-        USE_LAYOUT := LAYOUT_US_ENGLISH
-        ARD_BOARDS = $(TEENSY_BOARDS)
-        BUILD_CORE = $(shell $(SED) -n 's/^$(BOARD)\.build\.core=\(.*\)/\1/p' < $(ARD_BOARDS))
-        ARD_SRC_DIR = $(TEENSY_BASE)$(BUILD_CORE)
-        ifdef BOARD_SUB
-            CPU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-            MCU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
-            F_CPU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-            ifndef F_CPU
-                F_CPU := $(shell $(SED) -n 's/^$(BOARD_SUB)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) -n 1)
-            endif
-            UPLOAD_SPEED := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
-            BUILD_BOARD := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        # Check if the board is part of a sub menu.
-        ifndef CPU
-            CPU := $(shell $(SED) -n 's/^$(BOARD)\.build\.cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        ifndef MCU
-            MCU := $(shell $(SED) -n 's/^$(BOARD)\.build\.mcu=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        ifndef F_CPU
-            F_CPU := $(shell $(SED) -n 's/^$(BOARD)\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        ifndef F_CPU
-            F_CPU := $(shell $(SED) -n 's/^$(BOARD)\.menu\.speed\..*\.build\.f_cpu=\(.*\)/\1/p' < $(ARD_BOARDS) | $(HEAD) -n 1)
-        endif
-        ifndef UPLOAD_SPEED
-            UPLOAD_SPEED := $(shell $(SED) -n 's/^$(BOARD)\.upload\.speed=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        ifndef BUILD_BOARD
-            BUILD_BOARD := $(shell $(SED) -n 's/^$(BOARD)\.build\.board=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
+# look for $(BOARD)\..*\.en-us\.build\.define.*=-D(LAYOUT_US_ENGLISH)$
+
+ifdef USE_LAYOUT
+    EXTRA_FLAGS += -D$(USE_LAYOUT)
+else
+# look for $(BOARD)\..*\.en-us\.build\.define.*=(-DLAYOUT_US_ENGLISH)
+    EFB = $(shell $(SED) -n 's/^$(BOARD)\..*\.en-us\.build\.define.*=\(\)/\1/p' < $(ARD_BOARDS))
+    ifneq ($(strip $(EFB)),)
+        EXTRA_FLAGS += $(EFB)
+    endif
+endif
+
+ifdef USB_BUILD_DEFINE
+    EXTRA_FLAGS += -D$(USB_BUILD_DEFINE)
+else
+# look for $(BOARD)\..*\.usb\.serial\.build.define.*=\(-DUSB_SERIAL\)
+    EFL = $(shell $(SED) -n 's/^$(BOARD)\..*\.usb\.serial\.build\.define.*=\(.*\)/\1/p' < $(ARD_BOARDS))
+    ifneq ($(strip $(EFL)),)
+        EXTRA_FLAGS += $(EFL)
     endif
 endif
 
@@ -447,117 +483,22 @@ ifndef MCU
     $(error Unknown board '$(BOARD)')
 endif
 
-CPU_MCU = $(MCU)
-
-
-#
-# NOTE: for 1.0.5
-#
-# Pull in any regular extra C flags
-#
-#
-
-EXT_C_FLAGS := $(shell $(SED) -n 's/^$(BOARD)\.build\.option[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
-ifdef EXT_C_FLAGS
-    ifndef USB_BUILD_DEFINE
-        EXT_C_FLAGS += $(shell $(SED) -n 's/^$(BOARD)\.menu\.usb\.serial\.build\.define[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
-    endif
-    EXT_CPP_FLAGS += $(shell $(SED) -n 's/^$(BOARD)\.build\.cppoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS)) $(EXT_C_FLAGS)
-    EXT_LINK_FLAGS += $(shell $(SED) -n 's/^$(BOARD)\.build\.linkoption[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
-    EXT_LINK_T_FLAG := $(shell $(SED) -n 's/^$(BOARD)\.build\.linkscript=\(.*\)/\1/p' < $(ARD_BOARDS))
-    ifdef EXT_LINK_T_FLAG
-        EXT_LINK_T_FLAGS += -T$(ARD_SRC_DIR)/$(EXT_LINK_T_FLAG)
-    endif
-    EXT_LIBS += $(shell $(SED) -n 's/^$(BOARD)\.build\.additionalobject[^=]*=\(.*\)/\1/p' < $(ARD_BOARDS))
+CPU_MCU =$(MCU)
+# Automatically locate AVR and ARM tools.
+AVR_BIN ?=$(shell $(FIND) $(ARD_HOME)/hardware -name avr-ar -exec $(DIRNAME) \{\} \; | grep '/bin' )
+ARM_BIN ?=$(shell $(FIND) $(ARD_HOME)/hardware -name arm-none-eabi-ar -exec $(DIRNAME) \{\} \; | grep '/bin' )
+ifeq ($(strip $(AVRDUDE)),)
+AVRDUDE =$(shell $(FIND) $(ARD_HOME)/hardware -name avrdude -print)
 endif
-
-# Add extracted variable to compiler flags.
-ifdef BUILD_BOARD
-    EXTRA_FLAGS += -DARDUINO_$(BUILD_BOARD)
+AVRDUDE_CONF ?=$(shell $(FIND) $(ARD_HOME)/hardware -name avrdude.conf -print )
+TEENSY_LOADER_CLI ?=$(shell $(FIND) $(ARD_HOME)/hardware -name teensy_loader_cli -print )
+# use avr as the default
+ifeq ($(strip $(BUILD_ARCH)),)
+BUILD_ARCH=avr
 endif
-
-ifdef USB_BUILD_DEFINE
-    EXTRA_FLAGS += -D$(USB_BUILD_DEFINE)
-endif
-
-ifdef USE_LAYOUT
-    EXTRA_FLAGS += -D$(USE_LAYOUT)=1
-endif
-
-ifdef BOARD_EXTRA_FLAGS
-        ifdef BOARD_SUB
-                USB_VID := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
-                USB_PID := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
-                USB_MANUFACTURER := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
-                USB_PRODUCT := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        ifndef USB_VID
-                USB_VID := $(shell $(SED) -n 's/^$(BOARD)\.build\.vid=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        ifndef USB_PID
-                USB_PID := $(shell $(SED) -n 's/^$(BOARD)\.build\.pid=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        ifndef USB_MANUFACTURER
-                USB_MANUFACTURER := $(shell $(SED) -n 's/^$(BOARD)\.build\.usb_manufacturer=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        ifndef USB_PRODUCT
-                USB_PRODUCT := $(shell $(SED) -n 's/^$(BOARD)\.build\.usb_product=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-
-        ifdef USB_VID
-                USB_FLAGS = -DUSB_VID=$(USB_VID)
-        endif
-        ifdef USB_PID
-                USB_FLAGS += -DUSB_PID=$(USB_PID)
-        endif
-        ifdef USB_MANUFACTURER
-                USB_FLAGS += '-DUSB_MANUFACTURER=$(USB_MANUFACTURER)'
-        endif
-        ifdef USB_PRODUCT
-                USB_FLAGS += '-DUSB_PRODUCT=$(USB_PRODUCT)'
-        endif
-
-        BOARD_EXTRA_FLAGS := $(subst {build.usb_flags},$(USB_FLAGS),$(BOARD_EXTRA_FLAGS)) # Subst {build.usb_flags} with -DUSB_VID={build.vid} -DUSB_PID={build.pid} '-DUSB_MANUFACTURER={build.usb_manufacturer}' '-DUSB_PRODUCT={build.usb_product}'
-        EXTRA_FLAGS += $(BOARD_EXTRA_FLAGS)
-endif
-
-
-# Read programmer type from boards.txt.
-ifndef PROGRAMMER
-    ifdef BOARD_SUB
-        PROGRAMMER := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
-    endif
-    ifndef PROGRAMMER
-        PROGRAMMER := $(shell $(SED) -n 's/^$(BOARD)\.upload\.protocol=\(.*\)/\1/p' < $(ARD_BOARDS))
-    endif
-    ifndef PROGRAMMER
-        PROGRAMMER = arduino # Defaults to arduino upload protocol
-    endif
-endif
-
-# extract arch
-
-# Arduino architecture:
-ifdef BOARD_SUB
-    BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS))
-endif
-ifndef BUILD_ARCH
-    BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD)\.build\.arch=\(.*\)/\1/p' < $(ARD_BOARDS))
-endif
-
-# Teensy architecture:
-ifndef BUILD_ARCH
-        ifdef BOARD_SUB
-            BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-        ifndef BUILD_ARCH
-            BUILD_ARCH := $(shell $(SED) -n 's/^$(BOARD)\.build\.architecture=\(.*\)/\1/p' < $(ARD_BOARDS))
-        endif
-endif
-
-# default is avr
-ifndef BUILD_ARCH
-    BUILD_ARCH = avr
+ARD_SRC_DIR = $(ARD_SPEC)/cores/$(BUILD_CORE)
+ifneq ($(strip $(VARIANT)),)
+INTERNAL_LIB_DIRS += $(ARD_SPEC)/variants/$(VARIANT)
 endif
 
 EXTRA_FLAGS += -DARDUINO_ARCH_$(shell echo $(BUILD_ARCH) | $(TR) a-z A-Z)
@@ -599,146 +540,6 @@ endif
 endif
 
 
-# Automatically add user libraries and Arduino libraries. 
-# Note: This code is dumb! It does not follow conditionals in the code.
-#       This will also include multiple versions of a USER library.
-#       The effect of this is that it may compile unwanted code.
-#       It does seem to work OK dispite this.
-#
-# TO-DO: Fix stupidity by using the pre-processor.
-#$(shell $(FIND) . -name '*.c' -exec ... )
-#$(shell $(FIND) . \( -name '*.cpp' -o -name '*.ino' \) -exec ... )
-#
-# TO-DO: Scan user libraries for interdependence?
-# TO-DO: Scan Arduino libraries for interdependence?
-
-# Step 1: Gather the primary directories
-
-
-ifdef THIRD_PARTY_HARDWARE
-        PPRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; do $(FIND) $(THIRD_PARTY_HARDWARE)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
-endif
-
-PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g' | $(SED) 's/.*<//g' ` ; do $(FIND) -L ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ; done  2>/dev/null | $(UNIQ) )
-PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; do $(FIND) -L $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
-PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g' | $(SED) 's/.*<//g' ` ; do $(FIND) -L $(ARD_HOME)/hardware/arduino/$(BUILD_ARCH)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
-
-# Gather all arch subdirectories as well
-ARCH_DIRS=$(shell for i in $(PPRILIB_DIRS) ; do $(FIND) $$i -name $(BUILD_ARCH) -print ; done )
-
-# Step 2: Combine everything
-PVLIB_DIRS = $(PPRILIB_DIRS)
-LIB_DIRS = $(INTERNAL_LIB_DIRS) $(ARCH_DIRS) 
-
-
-#
-# Step 3: Weed out duplicate libraries based on pathname
-#
-PPBLIB_DIRS = $(shell for i in $(PVLIB_DIRS) ; do $(BASENAME) $$i ; done )
-PBLIB_DIRS = $(strip $(call uniqlist,$(PPBLIB_DIRS)))
-#$(info Libraries used: $(PBLIB_DIRS))
-PWLIB_DIRS = $(shell for i in $(PBLIB_DIRS) ; do echo $(PVLIB_DIRS) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -m 1 -e $$i ; done )
-#$(info Libraries used: $(PWLIB_DIRS))
-
-#
-# Step 3b: Get the full pathname
-#
-LIB_DIRS += $(shell for i in $(PWLIB_DIRS) ; do $(READLINK) -f $$i ; done )
-
-# Step 4: Gather any 'utility' subdirectories. 
-# This stupidity brought to you by the developers of the Arduino 'IDE', and 
-# by the library developers that don't know how to use include properly.
-UTLLIB_DIRS = $(shell for i in $(LIB_DIRS) ; do $(FIND) $$i -name 'utility' -print ; done )
-
-LIBDIRS = $(LIB_DIRS) $(UTLLIB_DIRS) 
-#$(info Library directories: $(LIBDIRS))
-
-# Compiler flags.
-INC_FLAGS = \
-     -I$(ARD_SRC_DIR) $(addprefix -I,$(LIBDIRS)) $(addprefix -I,$(INC_DIRS))
-
-#$(warning INC_FLAGS: $(INC_FLAGS))
-
-
-ifdef CPU
-ARD_MCP += -mcpu=$(CPU)
-else
-ARD_MCP += -mmcu=$(MCU)
-endif
-
-ARD_FLAGS += -DF_CPU=$(F_CPU) -DARDUINO=$(ARD_REV) $(ARD_MCP)
-BASE_FLAGS = $(OPT_FLAGS) -g -w $(EXTRA_FLAGS) $(INC_FLAGS) $(ARD_FLAGS) -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion
-C_CXX_FLAGS = -Wa,-adhlns=$*.lst $(BASE_FLAGS)
-
-CXX_FLAGS = -x c++ $(C_CXX_FLAGS) $(EXT_CPP_FLAGS)
-INO_FLAGS = -x c++ -Wa,-adhlns=$(@D)/$*.lst $(BASE_FLAGS) $(EXT_CPP_FLAGS)
-C_FLAGS = -x c -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration $(C_CXX_FLAGS) $(EXT_C_FLAGS)
-SKT_C_FLAGS = -x c -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa,-adhlns=$(@D)/$*.lst $(BASE_FLAGS) $(EXT_C_FLAGS)
-
-# Build parameters.
-IMAGE = $(BUILD_DIR)/$(SKETCH)
-
-all: alldirs $(IMAGE).hex
-
-# core sources
-ARD_C_SRC := $(strip $(wildcard $(ARD_SRC_DIR)/*.c))
-#$(info $(ARD_C_SRC))
-ARD_CXX_SRC := $(strip $(wildcard $(ARD_SRC_DIR)/*.cpp))
-#$(info $(ARD_CXX_SRC))
-ALL_ARD_SRC := $(strip $(ARD_C_SRC) $(ARD_CXX_SRC))
-#$(info $(ALL_ARD_SRC))
-ARD_C_OBJ := $(strip $(patsubst %.c,%_c.o,$(notdir $(ARD_C_SRC))))
-ARD_CXX_OBJ := $(strip $(patsubst %.cpp,%_cpp.o,$(notdir $(ARD_CXX_SRC))))
-ARD_C_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/core_/%,$(notdir $(ARD_C_OBJ)))
-ARD_CXX_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/core_/%,$(notdir $(ARD_CXX_OBJ)))
-ALL_CORE_OBJS := $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS)
-#$(info $(ALL_CORE_OBJS))
-
-$(foreach x,$(ARD_C_SRC),$(eval $(call ruletemplate-compile-c,$(BUILD_DIR)/core_/$(notdir $(strip $(patsubst %.c,%_c.o,$(strip $(x))))),$(strip $(x)))))
-
-$(foreach x,$(ARD_CXX_SRC),$(eval $(call ruletemplate-compile-cxx,$(BUILD_DIR)/core_/$(notdir $(strip $(patsubst %.cpp,%_cpp.o,$(strip $(x))))),$(strip $(x)))))
-
-
-# library sources
-LIB_C_SRC := $(foreach ld,$(LIBDIRS),$(wildcard $(ld)/*.c))
-LIB_CXX_SRC := $(foreach ld,$(LIBDIRS),$(wildcard $(ld)/*.cpp))
-ALL_LIB_SRC := $(LIB_C_SRC) $(LIB_CXX_SRC)
-#$(info $(ALL_LIB_SRC))
-ifneq "$(strip $(LIB_C_SRC) $(LIB_CXX_SRC))" ""
-    LIB_C_OBJ := $(strip $(patsubst %.c,%_c.o,$(LIB_C_SRC)))
-    LIB_CXX_OBJ := $(strip $(patsubst %.cpp,%_cpp.o,$(LIB_CXX_SRC)))
-    LIB_C_LINK_OBJS := $(strip $(foreach var,$(PBLIB_DIRS),$(patsubst %,$(BUILD_DIR)/$(var)_/%,$(notdir $(shell echo $(LIB_C_OBJ) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/')))))
-    #$(info $(LIB_C_LINK_OBJS))
-    #$(info $(LIB_C_LINK_LSTS))
-    LIB_CXX_LINK_OBJS := $(strip $(foreach var,$(PBLIB_DIRS),$(patsubst %,$(BUILD_DIR)/$(var)_/%,$(notdir $(shell echo $(LIB_CXX_OBJ) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/')))))
-    ALL_LIB_OBJS := $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS)
-    ALL_LIB_BDIR := $(strip $(patsubst %,$(BUILD_DIR)/%_,$(PBLIB_DIRS)))
-    $(foreach var,$(PBLIB_DIRS),$(foreach x,$(shell echo $(LIB_C_SRC) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/'),$(eval $(call ruletemplate-compile-c,$(BUILD_DIR)/$(var)_/$(notdir $(strip $(patsubst %.c,%_c.o,$(strip $(x))))),$(strip $(x))))))
-    $(foreach var,$(PBLIB_DIRS),$(foreach x,$(shell echo $(LIB_CXX_SRC) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/'),$(eval $(call ruletemplate-compile-cxx,$(BUILD_DIR)/$(var)_/$(notdir $(strip $(patsubst %.cpp,%_cpp.o,$(strip $(x))))),$(strip $(x))))))
-    ALL_LIB_ARS := $(foreach var,$(PBLIB_DIRS),$(BUILD_DIR)/$(var)_/libA$(var)_.a)
-    ALL_LIB_LINKDIR := $(foreach var,$(PBLIB_DIRS),-L$(BUILD_DIR)/$(var)_)
-    ALL_LIB_LINKED := $(foreach var,$(PBLIB_DIRS),-lA$(var)_)
-endif
-
-
-# Sketch INO source. FAIL on > 1 .ino
-SKT_PDE_SRC := $(wildcard *.ino)
-SKT_PDE_OBJ := $(BUILD_DIR)/$(SKETCH)_ino.o
-
-# Sketch C and C++ source.
-SKT_C_SRC := $(wildcard *.c)
-SKT_CXX_SRC := $(wildcard *.cpp)
-ALL_SKT_SRC := $(SKT_C_SRC) $(SKT_CXX_SRC)
-ifneq "$(strip $(SKT_C_SRC) $(SKT_CXX_SRC))" ""
-    SKT_C_OBJ := $(patsubst %.c,%_c.o,$(SKT_C_SRC))
-    SKT_CXX_OBJ := $(patsubst %.cpp,%_cpp.o,$(SKT_CXX_SRC))
-    SKT_C_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/%,$(SKT_C_OBJ))
-    SKT_CXX_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/%,$(SKT_CXX_OBJ))
-    SKT_LINK_OBJS := $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS)
-endif
-
-# Match patterns
-VPATH = $(LIBDIRS)
 
 ifdef BOARD_SUB
     USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD_SUB)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
@@ -748,88 +549,47 @@ ifndef USE_1200BPS_TOUCH
     USE_1200BPS_TOUCH := $(shell $(SED) -n 's/^$(BOARD)\.upload\.use_1200bps_touch=\(.*\)/\1/p' < $(ARD_BOARDS))
 endif
 
-# Common rule bodies.
 
-ifeq "$(BUILD_ARCH)" "avr"
-define show_burn_info
-    $(SIZE) -A $(IMAGE).elf
-    $(SIZE) -B $(IMAGE).elf
-    $(SIZE) -C --mcu=$(MCU) $(IMAGE).elf
-endef
-else
-define show_burn_info
-    $(SIZE) -A $(IMAGE).elf
-    $(SIZE) -B $(IMAGE).elf
-endef
+# Rules.
+
+
+all: alldirs $(IMAGE).hex
+
+
+ifeq "$(BUILD_ARCH)" "arm-none-eabi"
+#
+# Everything checks out OK.
+# Some of this file really belongs in a CRT section, but, is not.
+# Fact of the matter is that you should not have to rebuild it for
+# each compile, but instead have crt files.
+# One for each variant, or something generic...
+# So I have to add this special rule, so compiles work.
+#
+# As a sideeffect, simple sketch sizes go from 70KB down to 17KB.
+# This is about a 24.29% savings in flash space, and more room
+# for actual code, not stale cruft that ld doesn't GC, because 
+# ld can't  GC something it is told to link in explictly.
+#
+# Hopefully Paul will fix this one day...
+#
+$(BUILD_DIR)/core_/crt_mk2xx.o: $(BUILD_DIR)/core_/mk20dx128_c.o
+	$(CP) $(BUILD_DIR)/core_/mk20dx128_c.o $(BUILD_DIR)/core_/crt_mk2xx.o
+
+#
+# Add it to the deps.
+#
+EXT_LINK_EXTRA = $(BUILD_DIR)/core_/crt_mk2xx.o
 endif
 
-define build-msg
-    @echo -n 'Building "$(@)"... '
-endef
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
 
-define compile-cc
-    $(build-msg)
-    @$(CC) -c $(C_FLAGS) -MMD $< -o $(@)
-    @$(CXXFILT) < $*.lst > $*.lst.tmp
-    @$(MV) $*.lst.tmp $*.lst
-    @$(CP) $*.d $*.P
-    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d
-    @$(RM) -f $*.P
-    @echo
-endef
 
-define compile-cxx
-    $(build-msg)
-    @$(CXX) -c $(CXX_FLAGS) -MMD $< -o $(@)
-    @$(CXXFILT) < $*.lst > $*.lst.tmp
-    @$(MV) $*.lst.tmp $*.lst
-    @$(CP) $*.d $*.P
-    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d
-    @$(RM) -f $*.P
-    @echo
-endef
-
-define compile-cxx-ino
-    $(build-msg)
-    @$(CXX) -c $(INO_FLAGS) -MMD $< -o $(@)
-    @$(MV) $(@D)/$*.lst $(@D)/$*_ino.lst
-    @$(CXXFILT) < $(@D)/$*_ino.lst > $(@D)/$*_ino.lst.tmp
-    @$(MV) $(@D)/$*_ino.lst.tmp $(@D)/$*_ino.lst
-    @$(CP) $(@D)/$*_ino.d $(@D)/$*_ino.P
-    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_ino.P >> $(@D)/$*_ino.d
-    @$(RM) -f $(@D)/$*_ino.P
-    @echo
-endef
-
-define compile-cxx-skt
-    $(build-msg)
-    @$(CXX) -c $(INO_FLAGS) -MMD $< -o $(@)
-    @$(MV) $(@D)/$*.lst $(@D)/$*_cpp.lst
-    @$(CXXFILT) < $(@D)/$*_cpp.lst > $(@D)/$*_cpp.lst.tmp
-    @$(MV) $(@D)/$*_cpp.lst.tmp $(@D)/$*_cpp.lst
-    @$(CP) $(@D)/$*_cpp.d $(@D)/$*_cpp.P
-    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_cpp.P >> $(@D)/$*_cpp.d
-    @$(RM) -f $(@D)/$*_cpp.P
-    @echo
-endef
-
-define compile-cc-skt
-    $(build-msg)
-    @$(CC) -c $(SKT_C_FLAGS) -MMD $< -o $(@)
-    @$(MV) $(@D)/$*.lst $(@D)/$*_c.lst
-    @$(CXXFILT) < $(@D)/$*_c.lst > $(@D)/$*_c.lst.tmp
-    @$(MV) $(@D)/$*_c.lst.tmp $(@D)/$*_c.lst
-    @$(CP) $(@D)/$*_c.d $(@D)/$*_c.P
-    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_c.P >> $(@D)/$*_c.d
-    @$(RM) -f $(@D)/$*_c.P
-    @echo
-endef
-
-define run-ar
-    $(build-msg)
-    @$(AR) rcs $@ $(wildcard $(dir $@)/*.o)
-    @echo
-endef
+# upload bodies
 
 ifeq "$(PROGRAMMER)" "halfkay"
     define upload-hex
@@ -880,9 +640,481 @@ else
     endef
 endif
 
+ARD_FLAGS += -DF_CPU=$(F_CPU) -DARDUINO=$(ARD_REV) $(ARD_MCP)
+BASE_FLAGS = $(OPT_FLAGS) -g -w $(EXTRA_FLAGS) $(INC_FLAGS) $(ARD_FLAGS) -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion
+C_CXX_FLAGS = -Wa,-adhlns=$*.lst $(BASE_FLAGS)
+
+CXX_FLAGS = -x c++ $(C_CXX_FLAGS) $(EXT_CPP_FLAGS) -MMD
+INO_FLAGS = -x c++ -Wa,-adhlns=$(@D)/$*.lst $(BASE_FLAGS) $(EXT_CPP_FLAGS) -MMD
+C_FLAGS = -x c -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration $(C_CXX_FLAGS) $(EXT_C_FLAGS) -MMD
+SKT_C_FLAGS = -x c -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa,-adhlns=$(@D)/$*.lst $(BASE_FLAGS) $(EXT_C_FLAGS) -MMD
+
+define run-ccc
+    $(CC) -c $(C_FLAGS) $< -o $(@)
+endef
+
+define run-ccxx
+    $(CXX) -c $(CXX_FLAGS) $< -o $(@)
+endef
+
+define run-ccxxino
+    $(CXX) -c $(INO_FLAGS) $< -o $(@)
+endef
+
+define run-cxxskt
+    $(CXX) -c $(INO_FLAGS) $< -o $(@)
+endef
+
+define run-cccskt
+    (CC) -c $(SKT_C_FLAGS) $< -o $(@)
+endef
+
+define run-link
+	$(CC) -Os \
+	    $(GCS) \
+	    $(ARD_MCP) $(EXT_LINK_FLAGS) \
+	    $(EXT_LINK_T_FLAGS) \
+	    $(EXT_LINK_EXTRA) \
+	    $(SKT_PDE_OBJ) \
+            $(SKT_LINK_OBJS) \
+	    -L$(BUILD_DIR) -L$(BUILD_DIR)/core_ \
+	    $(ALL_LIB_LINKDIR) \
+	    -lAuser_ \
+	    $(ALL_LIB_LINKED) \
+	    -lAcore_ \
+	    $(EXT_LIBS) \
+	    -lm \
+	    -o $(IMAGE).elf 
+endef
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+else
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
 
 
-# Rules.
+$(info Using New Arduino discovery for tools.)
+#
+# Defs will be in platform.txt PLAT_SPEC
+#
+
+#
+# TO-DO: list all available BOARD with optional BOARD_SUB
+#
+ifeq ($(strip $(VARIANT)),)
+    $(error BOARD "$(BOARD)", BOARD_SUB "$(BOARD_SUB)" not supported. Please check you are using the correct Arduino installation)
+endif
+
+PLAT_SPEC =$(ARD_SPEC)/platform.txt
+runtime_aDjOkT_ide_aDjOkT_path:=$(ARD_HOME)
+serial_aDjOkT_port:=$(PORT)
+serial_aDjOkT_port_aDjOkT_file:=$(PORT)
+
+ifdef BOARD_SUB
+$(foreach line,$(shell $(SED) -e '/^\s*#/d;/.*=\s*$$/d;/.*\..*=.*/!d;/^$(BOARD)\..*/!d;s/[^.]*\.\(.*\)/\1/;/^vid\..*/d;/^pid\..*/d;s/^\([^m][^e][^n][^u]\)/$(BOARD_SUB)\.\1/;;s/^menu\.cpu\.//;/^$(BOARD_SUB)\..*/!d;s/[^.]*\.\(.*\)/\1/;s/\./_aDjOkT_/g;s/{/\$${/g;/^\s*$$/d;s/ /_aSjPkC_/g;s/$$/ /g' < $(ARD_BOARDS)),$(eval $(subst _aSjPkC_, ,$(line))))
+else
+$(foreach line,$(shell $(SED) -e '/^\s*#/d;/.*=\s*$$/d;/.*\..*=.*/!d;/^$(BOARD)\..*/!d;s/[^.]*\.\(.*\)/\1/;/^vid\..*/d;/^pid\..*/d;s/\./_aDjOkT_/g;s/{/\$${/g;/^\s*$$/d;s/ /_aSjPkC_/g;s/$$/ /g' < $(ARD_BOARDS)),$(eval $(subst _aSjPkC_, ,$(line))))
+endif
+
+BUILD_BOARD :=$(subst _aDjOkT_,.,$(build_aDjOkT_board))
+MCU :=$(subst _aDjOkT_,.,$(build_aDjOkT_mcu))
+CPU :=$(subst _aDjOkT_,.,$(build_aDjOkT_cpu))
+F_CPU :=$(subst _aDjOkT_,.,$(build_aDjOkT_f_cpu))
+
+ifneq ($(strip $(USE_CPU)),)
+    CPU=$(strip $(USE_CPU))
+    build_aDjOkT_cpu=$(strip $(USE_CPU))
+endif
+
+ifneq ($(strip $(findstring -mcpu=,$(recipe_aDjOkT_c_aDjOkT_combine_aDjOkT_pattern))),)
+    ifeq ($(strip $(build_aDjOkT_cpu)),)
+        build_aDjOkT_cpu =$(MCU)
+    endif
+endif
+
+ifneq ($(strip $(USE_MCU)),)
+    MCU =$(strip $(USE_MCU))
+    build_aDjOkT_mcu=$(strip $(USE_MCU))
+endif
+
+#
+# TO-DO: List BOARD_SUB choices
+#
+ifeq ($(strip $(BOARD_SUB)),)
+    ifeq ($(strip $(MCU)),$(strip $(BOARD)))
+        $(error Board "$(BOARD)", MCU not defined, set BOARD_SUB)
+    endif
+    ifeq ($(strip $(MCU)),)
+        $(error Board "$(BOARD)", MCU not defined, set BOARD_SUB)
+    endif
+endif
+
+ifeq ($(strip $(MCU)),)
+    $(error Board "$(BOARD)", variant "$(VARIANT)", BOARD_SUB "$(BOARD_SUB)", MCU not defined )
+endif
+
+$(foreach line,$(shell $(SED) -e '/^\s*#/d;/.*=\s*$$/d;/.*\..*=.*/!d;s/\./_aDjOkT_/g;s/{/\$${/g;/^\s*$$/d;s/ /_aSjPkC_/g;s/$$/ /g;s/=/\=/' < $(PLAT_SPEC)),$(eval $(subst _aSjPkC_, ,$(line))))
+
+PROG_TOOL =$(subst _aDjOkT_,.,$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_cmd_aDjOkT_path))
+PROG_CONFIG =$(subst _aDjOkT_,.,$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_config_aDjOkT_path))
+PROGRAMMER =$(subst _aDjOkT_,.,$(upload_aDjOkT_protocol))
+UPLOAD_SPEED =$(subst _aDjOkT_,.,$(upload_aDjOkT_speed))
+
+path=$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_path)
+cmd=$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_cmd)
+cmd_aDjOkT_path=$(PROG_TOOL)
+config_aDjOkT_path=$(PROG_CONFIG)
+UPLOAD=$(subst _aDjOkT_,.,$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_upload_aDjOkT_pattern))
+
+
+ifeq ($(strip $(USB_VID)),)
+USB_VID =$(build_aDjOkT_vid)
+endif
+
+ifeq ($(strip $(USB_PID)),)
+USB_PID =$(build_aDjOkT_pid)
+endif
+
+ifeq ($(strip $(USB_MANUFACTURER)),)
+USB_MANUFACTURER =$(build_aDjOkT_usb_manufacturer)
+endif
+ifeq ($(strip $(USB_MANUFACTURER)),)
+USB_MANUFACTURER =$(build_aDjOkT_usb_manufacturer)
+endif
+
+ifeq ($(strip $(USB_PRODUCT)),)
+USB_PRODUCT =$(build_aDjOkT_usb_product)
+endif
+ifeq ($(strip $(USB_PRODUCT)),)
+USB_PRODUCT =$(build_aDjOkT_usb_product)
+endif
+
+comma := ,
+source_file = $<
+object_file = $(@)
+includes = _aEjXkT_ $(INC_FLAGS)
+compiler_aDjOkT_c_aDjOkT_extra_flags += -x c -Wstrict-prototypes -Wno-old-style-declaration -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion -MMD
+compiler_aDjOkT_cpp_aDjOkT_extra_flags += -x c++ -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion -MMD
+object_files = $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) -lAuser_ $(ALL_LIB_LINKED) 
+build_aDjOkT_path =$(BUILD_DIR)
+compiler_aDjOkT_c_aDjOkT_elf_aDjOkT_extra_flags += -L$(BUILD_DIR)/core_ $(ALL_LIB_LINKDIR)
+build_aDjOkT_variant_aDjOkT_path = $(ARD_SPEC)/variants/$(build_aDjOkT_variant)
+build_aDjOkT_system_aDjOkT_path=$(ARD_SPEC)/system
+build_aDjOkT_project_name =$(SKETCH)
+INTERNAL_LIB_DIRS += $(shell $(FIND) $(build_aDjOkT_variant_aDjOkT_path) -type d -print)
+
+GO_C_O =$(recipe_aDjOkT_c_aDjOkT_o_aDjOkT_pattern)
+GO_CPP_O =$(recipe_aDjOkT_cpp_aDjOkT_o_aDjOkT_pattern)
+GO_LINK =$(recipe_aDjOkT_c_aDjOkT_combine_aDjOkT_pattern)
+archive_file = core_/libarduino_core.a
+
+
+build_aDjOkT_arch =$(strip $(shell echo $(BUILD_ARCH) | $(TR) a-z A-Z))
+runtime_aDjOkT_ide_aDjOkT_version =$(ARD_REV)
+USE_1200BPS_TOUCH = $(upload_aDjOkT_use_1200bps_touch)
+
+TOOLCHEST = $(subst _aDjOkT_,.,$(compiler_aDjOkT_path)$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd)))
+
+CC = $(TOOLCHEST)-gcc
+CXX = $(TOOLCHEST)-g++
+CXXFILT = $(TOOLCHEST)-c++filt
+OBJCOPY = $(TOOLCHEST)-objcopy
+OBJDUMP = $(TOOLCHEST)-objdump
+AR = $(TOOLCHEST)-ar
+SIZE = $(TOOLCHEST)-size
+NM = $(TOOLCHEST)-nm
+LD = $(TOOLCHEST)-ld
+
+ARD_SRC_DIR = $(ARD_SPEC)/cores/$(BUILD_CORE)
+
+
+BUILD_ARCH =$(strip $(shell echo $(word 1,$(subst _, ,$(BUILD_BOARD))) | $(TR) A-Z a-z))
+BUILD_CORE =$(subst _aDjOkT_,.,$(build_aDjOkT_core))
+
+
+define run-link
+    $(CP) $(BUILD_DIR)/core_/libAcore_.a $(BUILD_DIR)/core_/libarduino_core.a
+    $(subst _aDjOkT_,.,$(GO_LINK))
+endef
+
+
+define run-ccc
+    $(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$*.lst,$(GO_C_O)))
+endef
+
+define run-ccxx
+    $(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$*.lst,$(GO_CPP_O)))
+endef
+
+define run-ccxxino
+    $(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_CPP_O)))
+endef
+
+define run-cxxskt
+    $(subst _aDjOkT_,.,$(subst _aEjXkT_,-std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_CPP_O)))
+endef
+
+define run-cccskt
+    $(subst _aDjOkT_,.,$(subst _aEjXkT_,-std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_C_O)))
+endef
+
+ifeq "$(USE_1200BPS_TOUCH)" "true"
+    ifeq "$(PLATFORM)" "Darwin"
+        STTY_ARGS := -f $(PORT) 1200
+    else
+        STTY_ARGS := -F $(PORT) 1200
+    endif
+    define upload-hex
+        stty $(STTY_ARGS)
+        sleep 2
+        $(UPLOAD)
+    endef
+else
+    define upload-hex
+        $(UPLOAD)
+    endef
+endif
+
+all: alldirs $(IMAGE).hex
+
+endif
+
+
+# Automatically add user libraries and Arduino libraries. 
+# Note: This code is dumb! It does not follow conditionals in the code.
+#       This will also include multiple versions of a USER library.
+#       The effect of this is that it may compile unwanted code.
+#       It does seem to work OK dispite this.
+#
+# TO-DO: Fix stupidity by using the pre-processor.
+#$(shell $(FIND) . -name '*.c' -exec ... )
+#$(shell $(FIND) . \( -name '*.cpp' -o -name '*.ino' \) -exec ... )
+#
+# TO-DO: Scan user libraries for interdependence?
+# TO-DO: Scan Arduino libraries for interdependence?
+
+# Step 1: Gather the primary directories
+
+
+ifdef THIRD_PARTY_HARDWARE
+        PPRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g;s/.*<//g' ` ; do $(FIND) $(THIRD_PARTY_HARDWARE)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
+endif
+
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g;s/.*<//g' ` ; do $(FIND) -L ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ; done  2>/dev/null | $(UNIQ) )
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g;s/.*<//g' ` ; do $(FIND) -L $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g;s/.*<//g' ` ; do $(FIND) -L $(ARD_HOME)/hardware/arduino/$(BUILD_ARCH)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
+
+# Gather all arch subdirectories as well
+ARCH_DIRS=$(shell for i in $(PPRILIB_DIRS) ; do $(FIND) $$i -name $(BUILD_ARCH) -print ; done )
+
+# Step 2: Combine everything
+PVLIB_DIRS = $(PPRILIB_DIRS)
+PSLIB_DIRS = $(strip $(subst /src , ,$(PVLIB_DIRS) ))
+LIB_DIRS = $(INTERNAL_LIB_DIRS) $(ARCH_DIRS) 
+
+#
+# Step 3: Weed out duplicate libraries based on pathname
+#
+PPBLIB_DIRS = $(shell for i in $(PSLIB_DIRS) ; do $(BASENAME) $$i ; done )
+PBLIB_DIRS = $(strip $(call uniqlist,$(PPBLIB_DIRS)))
+PWLIB_DIRS = $(shell for i in $(PBLIB_DIRS) ; do echo $(PVLIB_DIRS) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -m 1 -e $$i ; done )
+
+#
+# Step 3b: Get the full pathname
+#
+LIB_DIRS += $(shell for i in $(PWLIB_DIRS) ; do $(READLINK) -f $$i ; done )
+
+# Step 4: Gather any 'utility' subdirectories. 
+# This stupidity brought to you by the developers of the Arduino 'IDE', and 
+# by the library developers that don't know how to use include properly.
+UTLLIB_DIRS = $(shell for i in $(LIB_DIRS) ; do $(FIND) $$i -name 'utility' -print ; done )
+
+LIBDIRS = $(LIB_DIRS) $(UTLLIB_DIRS) 
+
+INC_FLAGS = \
+     -I$(ARD_SRC_DIR) $(addprefix -I,$(LIBDIRS)) $(addprefix -I,$(INC_DIRS))
+
+
+
+ifneq ($(strip $(CPU)),)
+ARD_MCP += -mcpu=$(CPU)
+else
+ARD_MCP += -mmcu=$(MCU)
+endif
+
+
+# core sources
+ARD_C_SRC := $(strip $(wildcard $(ARD_SRC_DIR)/*.c) $(wildcard $(ARD_SRC_DIR)/*/*.c) $(wildcard $(ARD_SPEC)/variants/$(VARIANT)/*.c))
+ARD_CXX_SRC := $(strip $(wildcard $(ARD_SRC_DIR)/*.cpp) $(wildcard $(ARD_SRC_DIR)/*/*.cpp) $(wildcard $(ARD_SPEC)/variants/$(VARIANT)/*.cpp))
+ALL_ARD_SRC := $(strip $(ARD_C_SRC) $(ARD_CXX_SRC))
+ARD_C_OBJ := $(strip $(patsubst %.c,%_c.o,$(notdir $(ARD_C_SRC))))
+ARD_CXX_OBJ := $(strip $(patsubst %.cpp,%_cpp.o,$(notdir $(ARD_CXX_SRC))))
+ARD_C_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/core_/%,$(notdir $(ARD_C_OBJ)))
+ARD_CXX_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/core_/%,$(notdir $(ARD_CXX_OBJ)))
+ALL_CORE_OBJS := $(ARD_C_LINK_OBJS) $(ARD_CXX_LINK_OBJS)
+
+$(foreach x,$(ARD_C_SRC),$(eval $(call ruletemplate-compile-c,$(BUILD_DIR)/core_/$(notdir $(strip $(patsubst %.c,%_c.o,$(strip $(x))))),$(strip $(x)))))
+
+$(foreach x,$(ARD_CXX_SRC),$(eval $(call ruletemplate-compile-cxx,$(BUILD_DIR)/core_/$(notdir $(strip $(patsubst %.cpp,%_cpp.o,$(strip $(x))))),$(strip $(x)))))
+
+
+# library sources
+LIB_C_SRC := $(foreach ld,$(LIBDIRS),$(wildcard $(ld)/*.c))
+LIB_CXX_SRC := $(foreach ld,$(LIBDIRS),$(wildcard $(ld)/*.cpp))
+ALL_LIB_SRC := $(LIB_C_SRC) $(LIB_CXX_SRC)
+ifneq "$(strip $(LIB_C_SRC) $(LIB_CXX_SRC))" ""
+    LIB_C_OBJ := $(strip $(patsubst %.c,%_c.o,$(LIB_C_SRC)))
+    LIB_CXX_OBJ := $(strip $(patsubst %.cpp,%_cpp.o,$(LIB_CXX_SRC)))
+    LIB_C_LINK_OBJS := $(strip $(foreach var,$(PBLIB_DIRS),$(patsubst %,$(BUILD_DIR)/$(var)_/%,$(notdir $(shell echo $(LIB_C_OBJ) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/')))))
+    LIB_CXX_LINK_OBJS := $(strip $(foreach var,$(PBLIB_DIRS),$(patsubst %,$(BUILD_DIR)/$(var)_/%,$(notdir $(shell echo $(LIB_CXX_OBJ) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/')))))
+    ALL_LIB_OBJS := $(LIB_C_LINK_OBJS) $(LIB_CXX_LINK_OBJS)
+    ALL_LIB_BDIR := $(strip $(patsubst %,$(BUILD_DIR)/%_,$(PBLIB_DIRS)))
+    $(foreach var,$(PBLIB_DIRS),$(foreach x,$(shell echo $(LIB_C_SRC) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/'),$(eval $(call ruletemplate-compile-c,$(BUILD_DIR)/$(var)_/$(notdir $(strip $(patsubst %.c,%_c.o,$(strip $(x))))),$(strip $(x))))))
+    $(foreach var,$(PBLIB_DIRS),$(foreach x,$(shell echo $(LIB_CXX_SRC) | $(TR) -s '[[:space:]]' '\n' | $(GREP) -e '/$(var)/'),$(eval $(call ruletemplate-compile-cxx,$(BUILD_DIR)/$(var)_/$(notdir $(strip $(patsubst %.cpp,%_cpp.o,$(strip $(x))))),$(strip $(x))))))
+    ALL_LIB_ARS := $(foreach var,$(PBLIB_DIRS),$(BUILD_DIR)/$(var)_/libA$(var)_.a)
+    ALL_LIB_LINKDIR := $(foreach var,$(PBLIB_DIRS),-L$(BUILD_DIR)/$(var)_)
+    ALL_LIB_LINKED := $(foreach var,$(PBLIB_DIRS),-lA$(var)_)
+endif
+
+
+# Sketch INO source. FAIL on > 1 .ino
+SKT_PDE_SRC := $(wildcard *.ino)
+SKT_PDE_OBJ := $(BUILD_DIR)/$(SKETCH)_ino.o
+
+# Sketch C and C++ source.
+SKT_C_SRC := $(wildcard *.c)
+SKT_CXX_SRC := $(wildcard *.cpp)
+ALL_SKT_SRC := $(SKT_C_SRC) $(SKT_CXX_SRC)
+ifneq "$(strip $(SKT_C_SRC) $(SKT_CXX_SRC))" ""
+    SKT_C_OBJ := $(patsubst %.c,%_c.o,$(SKT_C_SRC))
+    SKT_CXX_OBJ := $(patsubst %.cpp,%_cpp.o,$(SKT_CXX_SRC))
+    SKT_C_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/%,$(SKT_C_OBJ))
+    SKT_CXX_LINK_OBJS := $(patsubst %,$(BUILD_DIR)/%,$(SKT_CXX_OBJ))
+    SKT_LINK_OBJS := $(SKT_C_LINK_OBJS) $(SKT_CXX_LINK_OBJS)
+endif
+
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+
+
+
+# Common rule bodies.
+
+ifeq "$(BUILD_ARCH)" "avr"
+define show_burn_info
+    $(SIZE) -A $(IMAGE).elf
+    $(SIZE) -B $(IMAGE).elf
+    $(SIZE) -C --mcu=$(MCU) $(IMAGE).elf
+endef
+else
+define show_burn_info
+    $(SIZE) -A $(IMAGE).elf
+    $(SIZE) -B $(IMAGE).elf
+endef
+endif
+
+define build-msg
+    @echo -n 'Building "$(@)"... '
+endef
+
+define compile-cc
+    $(build-msg)
+    $(run-ccc)
+    @$(CXXFILT) < $*.lst > $*.lst.tmp
+    @$(MV) $*.lst.tmp $*.lst
+    @$(CP) $*.d $*.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d
+    @$(RM) -f $*.P
+    @echo
+endef
+
+define compile-cxx
+    $(build-msg)
+    $(run-ccxx)
+    @$(CXXFILT) < $*.lst > $*.lst.tmp
+    @$(MV) $*.lst.tmp $*.lst
+    @$(CP) $*.d $*.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d
+    @$(RM) -f $*.P
+    @echo
+endef
+
+define compile-cxx-ino
+    $(build-msg)
+    $(run-ccxxino)
+    @$(MV) $(@D)/$*.lst $(@D)/$*_ino.lst
+    @$(CXXFILT) < $(@D)/$*_ino.lst > $(@D)/$*_ino.lst.tmp
+    @$(MV) $(@D)/$*_ino.lst.tmp $(@D)/$*_ino.lst
+    @$(CP) $(@D)/$*_ino.d $(@D)/$*_ino.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_ino.P >> $(@D)/$*_ino.d
+    @$(RM) -f $(@D)/$*_ino.P
+    @echo
+endef
+
+define compile-cxx-skt
+    $(build-msg)
+    $(run-cxxskt)
+    @$(MV) $(@D)/$*.lst $(@D)/$*_cpp.lst
+    @$(CXXFILT) < $(@D)/$*_cpp.lst > $(@D)/$*_cpp.lst.tmp
+    @$(MV) $(@D)/$*_cpp.lst.tmp $(@D)/$*_cpp.lst
+    @$(CP) $(@D)/$*_cpp.d $(@D)/$*_cpp.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_cpp.P >> $(@D)/$*_cpp.d
+    @$(RM) -f $(@D)/$*_cpp.P
+    @echo
+endef
+
+define compile-cc-skt
+    $(build-msg)
+    $(run-cccskt)
+    @$(MV) $(@D)/$*.lst $(@D)/$*_c.lst
+    @$(CXXFILT) < $(@D)/$*_c.lst > $(@D)/$*_c.lst.tmp
+    @$(MV) $(@D)/$*_c.lst.tmp $(@D)/$*_c.lst
+    @$(CP) $(@D)/$*_c.d $(@D)/$*_c.P
+    @$(SED) -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $(@D)/$*_c.P >> $(@D)/$*_c.d
+    @$(RM) -f $(@D)/$*_c.P
+    @echo
+endef
+
+define run-ar
+    $(build-msg)
+    $(AR) rcs $@ $(wildcard $(dir $@)/*.o)
+    @echo
+endef
+
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+
+#
+#
+# Common rules
+#
+
+# Match patterns
+VPATH = $(LIBDIRS)
+
 
 clean:
 	@echo -n "Cleaning... "
@@ -932,42 +1164,6 @@ $(BUILD_DIR)/%_cpp.o: %.cpp
 	$(compile-cxx-skt)
 
 
-
-
-############################################################################
-############################################################################
-############################################################################
-
-ifeq "$(BUILD_ARCH)" "arm-none-eabi"
-#
-# Everything checks out OK.
-# Some of this file really belongs in a CRT section, but, is not.
-# Fact of the matter is that you should not have to rebuild it for
-# each compile, but instead have crt files.
-# One for each variant, or something generic...
-# So I have to add this special rule, so compiles work.
-#
-# As a sideeffect, simple sketch sizes go from 70KB down to 17KB.
-# This is about a 24.29% savings in flash space, and more room
-# for actual code, not stale cruft that ld doesn't GC, because 
-# ld can't  GC something it is told to link in explictly.
-#
-# Hopefully Paul will fix this one day...
-#
-$(BUILD_DIR)/core_/crt_mk2xx.o: $(BUILD_DIR)/core_/mk20dx128_c.o
-	$(CP) $(BUILD_DIR)/core_/mk20dx128_c.o $(BUILD_DIR)/core_/crt_mk2xx.o
-
-#
-# Add it to the deps.
-#
-EXT_LINK_EXTRA = $(BUILD_DIR)/core_/crt_mk2xx.o
-endif
-
-############################################################################
-############################################################################
-############################################################################
-
-
 EVERY_DIR = $(BUILD_DIR) $(BUILD_DIR)/core_ $(ALL_LIB_BDIR)
 EVERY_O = $(ALL_LIB_OBJS) $(ALL_CORE_OBJS) 
 PRIMARY_A = $(BUILD_DIR)/core_/libAcore_.a $(BUILD_DIR)/libAuser_.a
@@ -989,24 +1185,11 @@ $(BUILD_DIR)/%_.a: $(EVERY_O)
 	$(run-ar)
 
 $(IMAGE).hex: $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) $(EVERY_O) $(PRIMARY_A) $(ALL_LIB_ARS) $(EXT_LINK_EXTRA)
-	$(CC) -Os \
-	    $(GCS) \
-	    $(ARD_MCP) $(EXT_LINK_FLAGS) \
-	    $(EXT_LINK_T_FLAGS) \
-	    $(EXT_LINK_EXTRA) \
-	    $(SKT_PDE_OBJ) \
-            $(SKT_LINK_OBJS) \
-	    -L$(BUILD_DIR) -L$(BUILD_DIR)/core_ \
-	    $(ALL_LIB_LINKDIR) \
-	    -lAuser_ \
-	    $(ALL_LIB_LINKED) \
-	    -lAcore_ \
-	    $(EXT_LIBS) \
-	    -lm \
-	    -o $(IMAGE).elf 
+	$(run-link)
 	@$(OBJCOPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load \
 	    --no-change-warnings --change-section-lma .eeprom=0 $(IMAGE).elf \
 	    $(IMAGE).eep
+	@$(OBJCOPY) -O binary -R .eeprom $(IMAGE).elf $(IMAGE).bin
 	@$(OBJCOPY) -O ihex -R .eeprom $(IMAGE).elf $(IMAGE).hex
 	@$(OBJDUMP) -h -S $(IMAGE).elf | $(CXXFILT) -t > $(IMAGE).lst
 	@$(show_burn_info)
