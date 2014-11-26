@@ -808,7 +808,7 @@ compiler_aDjOkT_c_aDjOkT_extra_flags += -x c -Wstrict-prototypes -Wno-old-style-
 compiler_aDjOkT_cpp_aDjOkT_extra_flags += -x c++ -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion -MMD
 object_files = $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) -lAuser_ $(ALL_LIB_LINKED) 
 build_aDjOkT_path =$(BUILD_DIR)
-compiler_aDjOkT_c_aDjOkT_elf_aDjOkT_extra_flags += -L$(BUILD_DIR)/core_ $(ALL_LIB_LINKDIR)
+compiler_aDjOkT_c_aDjOkT_elf_aDjOkT_extra_flags += -Wl,--relax -L$(BUILD_DIR)/core_ $(ALL_LIB_LINKDIR)
 build_aDjOkT_variant_aDjOkT_path = $(ARD_SPEC)/variants/$(build_aDjOkT_variant)
 build_aDjOkT_system_aDjOkT_path=$(ARD_SPEC)/system
 build_aDjOkT_project_name =$(SKETCH)
