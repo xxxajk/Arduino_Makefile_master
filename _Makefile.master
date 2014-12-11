@@ -115,6 +115,15 @@ READLINK ?=readlink
 BASENAME ?=basename
 ECHO ?=echo
 
+
+
+DEBUG_Makefile ?=0
+
+ifeq ($(strip $(DEBUG_Makefile)),0)
+MAKE_QUIET_BUILD?=@
+MAKE_QUIET_LINK?=@
+endif
+
 #
 # TO-DO: Check if this file or calling Makefile has changed
 #
@@ -124,7 +133,7 @@ ECHO ?=echo
 $(info Gathering build parameters...)
 #
 # Working shell list:
-WORKING_SH =/bin/ash /bin/bash /bin/ksh
+WORKING_SH =/bin/ash /bin/bash /bin/ksh /bin/dash
 
 #
 # Not working, and may never work
@@ -154,8 +163,7 @@ MON_SPEED ?=115200
 GCS ?=-Wl,--relax,--gc-sections
 
 # Optimiser flags.
-OPT_FLAGS ?=-Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD
-
+OPT_FLAGS ?= -Os -freorder-blocks -fno-inline-small-functions -fno-exceptions -ffunction-sections -fdata-sections -MMD -fno-rtti -felide-constructors
 define ruletemplate-compile-cxx
 $(1): $(2)
 	$$(compile-cxx)
@@ -485,8 +493,9 @@ endif
 
 CPU_MCU =$(MCU)
 # Automatically locate AVR and ARM tools.
-AVR_BIN ?=$(shell $(FIND) $(ARD_HOME)/hardware -name avr-ar -exec $(DIRNAME) \{\} \; | grep '/bin' )
-ARM_BIN ?=$(shell $(FIND) $(ARD_HOME)/hardware -name arm-none-eabi-ar -exec $(DIRNAME) \{\} \; | grep '/bin' )
+AVR_BIN ?=$(shell $(FIND) -L $(ARD_HOME)/hardware -type f -name avr-ar -exec $(DIRNAME) \{\} \; | grep '/bin' )
+ARM_BIN ?=$(shell $(FIND) -L $(ARD_HOME)/hardware -type f -name arm-none-eabi-ar -exec $(DIRNAME) \{\} \; | grep '/bin' )
+$(info $(ARM_BIN))
 ifeq ($(strip $(AVRDUDE)),)
 AVRDUDE =$(shell $(FIND) $(ARD_HOME)/hardware -name avrdude -print)
 endif
@@ -503,7 +512,7 @@ endif
 
 EXTRA_FLAGS += -DARDUINO_ARCH_$(shell echo $(BUILD_ARCH) | $(TR) a-z A-Z)
 
-ifeq "$(BUILD_ARCH)" "arm-none-eabi"
+ifneq "$(BUILD_ARCH)" "avr"
     USED_BIN = $(ARM_BIN)
 endif
 
@@ -515,30 +524,15 @@ USED_BIN ?= $(AVR_BIN)
 USED_TARGET ?= avr
 
 # Build tools.
-CC = $(USED_BIN)/$(USED_TARGET)-gcc
-CXX = $(USED_BIN)/$(USED_TARGET)-g++
-CXXFILT = $(USED_BIN)/$(USED_TARGET)-c++filt
-OBJCOPY = $(USED_BIN)/$(USED_TARGET)-objcopy
-OBJDUMP = $(USED_BIN)/$(USED_TARGET)-objdump
-AR = $(USED_BIN)/$(USED_TARGET)-ar
-SIZE = $(USED_BIN)/$(USED_TARGET)-size
-NM = $(USED_BIN)/$(USED_TARGET)-nm
-LD = $(USED_BIN)/$(USED_TARGET)-ld
-
-
-ifeq "$(BUILD_ARCH)" "arm-none-eabi"
-CHECK_VER = $(shell $(LD) -v | sed -ne 's/[^0-9]*\\(\\([0-9]\\.\\)\\{0,4\}[0-9][^.]\\).*/\\1/p')
-CHECK_VER_MAJ = $(shell echo $(CHECK_VER) | sed -ne 's/\\(^.*\\)\\..*/\\1/p')
-CHECK_VER_MIN = $(shell echo $(CHECK_VER) | sed -ne 's/^.*\\.\\(.*\\)/\\1/p')
-COMPARED_MAJ = $(shell if [ $CHECK_VER_MAJ \\< 3 ]; then echo '1' ; fi')
-ifeq "$(CHECK_VER_MAJ)" "1"
-COMPARED_MIN = $(shell if [ $CHECK_VER_MIN \\< 24 ]; then echo '1' ; fi')
-ifeq "$(COMPARED_MIN)" "1"
-$(error arm-none-eabi binutils are too old. Please upgrade to 2.24 or better.)
-endif
-endif
-endif
-
+CC = $(firstword $(sort $(wildcard $(USED_BIN)/$(USED_TARGET)*gcc)))
+CXX = $(firstword $(sort $(wildcard $(USED_BIN)/$(USED_TARGET)*g++)))
+CXXFILT = $(firstword $(sort $(wildcard $(USED_BIN)/$(USED_TARGET)*c++filt)))
+OBJCOPY = $(firstword $(sort $(wildcard $(USED_BIN)/$(USED_TARGET)*objcopy)))
+OBJDUMP = $(firstword $(sort $(wildcard $(USED_BIN)/$(USED_TARGET)*objdump)))
+AR = $(firstword $(sort $(wildcard $(USED_BIN)/$(USED_TARGET)*ar)))
+SIZE = $(firstword $(sort $(wildcard $(USED_BIN)/$(USED_TARGET)*size)))
+NM = $(firstword $(sort $(wildcard $(USED_BIN)/$(USED_TARGET)*nm)))
+LD = $(firstword $(sort $(wildcard $(USED_BIN)/$(USED_TARGET)*ld)))
 
 
 ifdef BOARD_SUB
@@ -650,23 +644,23 @@ C_FLAGS = -x c -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration $(C_CXX
 SKT_C_FLAGS = -x c -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa,-adhlns=$(@D)/$*.lst $(BASE_FLAGS) $(EXT_C_FLAGS) -MMD
 
 define run-ccc
-    $(CC) -c $(C_FLAGS) $< -o $(@)
+    $(MAKE_QUIET_BUILD)$(CC) -c $(C_FLAGS) $< -o $(@)
 endef
 
 define run-ccxx
-    $(CXX) -c $(CXX_FLAGS) $< -o $(@)
+    $(MAKE_QUIET_BUILD)$(CXX) -c $(CXX_FLAGS) $< -o $(@)
 endef
 
 define run-ccxxino
-    $(CXX) -c $(INO_FLAGS) $< -o $(@)
+    $(MAKE_QUIET_BUILD)$(CXX) -c $(INO_FLAGS) $< -o $(@)
 endef
 
 define run-cxxskt
-    $(CXX) -c $(INO_FLAGS) $< -o $(@)
+    $(MAKE_QUIET_BUILD)$(CXX) -c $(INO_FLAGS) $< -o $(@)
 endef
 
 define run-cccskt
-    (CC) -c $(SKT_C_FLAGS) $< -o $(@)
+    $(MAKE_QUIET_BUILD)$(CC) -c $(SKT_C_FLAGS) $< -o $(@)
 endef
 
 define run-link
@@ -848,25 +842,24 @@ define run-link
     $(subst _aDjOkT_,.,$(GO_LINK))
 endef
 
-
 define run-ccc
-    $(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$*.lst,$(GO_C_O)))
+    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$*.lst,$(GO_C_O)))
 endef
 
 define run-ccxx
-    $(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$*.lst,$(GO_CPP_O)))
+    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$*.lst,$(GO_CPP_O)))
 endef
 
 define run-ccxxino
-    $(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_CPP_O)))
+    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_CPP_O)))
 endef
 
 define run-cxxskt
-    $(subst _aDjOkT_,.,$(subst _aEjXkT_,-std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_CPP_O)))
+    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_CPP_O)))
 endef
 
 define run-cccskt
-    $(subst _aDjOkT_,.,$(subst _aEjXkT_,-std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_C_O)))
+    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_C_O)))
 endef
 
 ifeq "$(USE_1200BPS_TOUCH)" "true"
@@ -1094,7 +1087,7 @@ endef
 
 define run-ar
     $(build-msg)
-    $(AR) rcs $@ $(wildcard $(dir $@)/*.o)
+    $(MAKE_QUIET_BUILD)$(AR) rcs $@ $(wildcard $(dir $@)/*.o)
     @echo
 endef
 
@@ -1185,7 +1178,7 @@ $(BUILD_DIR)/%_.a: $(EVERY_O)
 	$(run-ar)
 
 $(IMAGE).hex: $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) $(EVERY_O) $(PRIMARY_A) $(ALL_LIB_ARS) $(EXT_LINK_EXTRA)
-	$(run-link)
+	$(MAKE_QUIET_LINK)$(run-link)
 	@$(OBJCOPY) -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load \
 	    --no-change-warnings --change-section-lma .eeprom=0 $(IMAGE).elf \
 	    $(IMAGE).eep
