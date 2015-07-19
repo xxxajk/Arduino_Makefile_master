@@ -242,6 +242,7 @@ else ifeq "$(PLATFORM)" "Linux"
     ifeq "$(CPORT)" "$(PORT)"
         define kill-monitor
             - pkill -f 'screen.*$(CPORT)'
+            - pkill -f 'cu.*$(CPORT)'
         endef
     endif
 
@@ -273,7 +274,7 @@ ifdef THIRD_PARTY_HARDWARE
     TPH_BOARDS =$(THIRD_PARTY_HARDWARE)/boards.txt
 endif
 
-ALL_BOARDS_TXT =$(strip $(TPH_BOARDS) $(shell $(FIND) $(ARD_HOME)/hardware -name boards.txt -print))
+ALL_BOARDS_TXT =$(strip $(TPH_BOARDS) $(shell $(FIND) $(ARD_HOME)/hardware -name boards.txt -print) $(shell $(FIND) ~/.arduino15/packages -name boards.txt -print))
 
 # Find the correct boards.txt file 
 # The basename should be where the core files are
@@ -290,7 +291,7 @@ ALL_BOARDS_TXT =$(strip $(TPH_BOARDS) $(shell $(FIND) $(ARD_HOME)/hardware -name
 #
 
 
-ARD_BOARDS=$(shell $(GREP) $(ALL_BOARDS_TXT) -le '^$(BOARD)\.')
+ARD_BOARDS=$(lastword $(shell $(GREP) $(ALL_BOARDS_TXT) -le '^$(BOARD)\.'))
 
 ifneq ($(strip $(ARD_BOARDS)),)
     ifdef BOARD_SUB
@@ -710,7 +711,12 @@ ifeq ($(strip $(VARIANT)),)
     $(error BOARD "$(BOARD)", BOARD_SUB "$(BOARD_SUB)" not supported. Please check you are using the correct Arduino installation)
 endif
 
+$(info $(ARD_SPEC))
 PLAT_SPEC =$(ARD_SPEC)/platform.txt
+
+$(info $(PLAT_SPEC))
+
+
 runtime_aDjOkT_ide_aDjOkT_path:=$(ARD_HOME)
 serial_aDjOkT_port:=$(PORT)
 serial_aDjOkT_port_aDjOkT_file:=$(PORT)
@@ -798,8 +804,8 @@ comma := ,
 source_file = $<
 object_file = $(@)
 includes = _aEjXkT_ $(INC_FLAGS)
-compiler_aDjOkT_c_aDjOkT_extra_flags += -x c -Wstrict-prototypes -Wno-old-style-declaration -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion -MMD
-compiler_aDjOkT_cpp_aDjOkT_extra_flags += -x c++ -DUSING_MAKEFILE=1 -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion -MMD
+compiler_aDjOkT_c_aDjOkT_extra_flags += -x c -Wstrict-prototypes -Wno-old-style-declaration -DUSING_MAKEFILE=1 $(EXTRA_FLAGS) -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion -MMD
+compiler_aDjOkT_cpp_aDjOkT_extra_flags += -x c++ -DUSING_MAKEFILE=1 $(EXTRA_FLAGS) -Wall -Wextra -Wformat=2 -Wuninitialized -Wshadow -Wconversion -MMD
 object_files = $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) -lAuser_ $(ALL_LIB_LINKED) 
 build_aDjOkT_path =$(BUILD_DIR)
 compiler_aDjOkT_c_aDjOkT_elf_aDjOkT_extra_flags += -Wl,--relax -L$(BUILD_DIR)/core_ $(ALL_LIB_LINKDIR)
@@ -818,7 +824,32 @@ build_aDjOkT_arch =$(strip $(shell echo $(BUILD_ARCH) | $(TR) a-z A-Z))
 runtime_aDjOkT_ide_aDjOkT_version =$(ARD_REV)
 USE_1200BPS_TOUCH = $(upload_aDjOkT_use_1200bps_touch)
 
+#
+# Problem, path may be missing.
+# runtime.tools.avr-gcc.path
+#
+
+ifeq ($(strip $(compiler_aDjOkT_path)),/bin/)
+  #
+  # Check alternates.
+  #
+
+
+ ifeq ($(wildcard $(ARD_SPEC)/../../../tools/$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd))$(compiler_aDjOkT_path)),)
+   ifeq ($(wildcard $(ARD_HOME)/hardware/tools/$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd))$(compiler_aDjOkT_path)),)
+     $(error Can not locate tools)
+   else
+     runtime_aDjOkT_tools_aDjOkT_$(compiler_aDjOkT_c_aDjOkT_cmd)_aDjOkT_path = $(ARD_HOME)/hardware/tools/$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd))
+   endif
+ else
+   runtime_aDjOkT_tools_aDjOkT_$(compiler_aDjOkT_c_aDjOkT_cmd)_aDjOkT_path = $(ARD_SPEC)/../../../tools/$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd))
+ endif
+endif
+
 TOOLCHEST = $(subst _aDjOkT_,.,$(compiler_aDjOkT_path)$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd)))
+
+$(info toolchest $(TOOLCHEST))
+
 
 CC = $(TOOLCHEST)-gcc
 CXX = $(TOOLCHEST)-g++
@@ -905,6 +936,7 @@ ifdef THIRD_PARTY_HARDWARE
 endif
 
 PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g;s/.*<//g' ` ; do $(FIND) -L ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ; done  2>/dev/null | $(UNIQ) )
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g;s/.*<//g' ` ; do $(FIND) -L $(ARD_SPEC)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
 PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g;s/.*<//g' ` ; do $(FIND) -L $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
 PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g;s/.*<//g' ` ; do $(FIND) -L $(ARD_HOME)/hardware/arduino/$(BUILD_ARCH)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
 
