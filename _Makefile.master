@@ -840,9 +840,13 @@ ifeq ($(strip $(compiler_aDjOkT_path)),/bin/)
      $(error Can not locate tools)
    else
      runtime_aDjOkT_tools_aDjOkT_$(compiler_aDjOkT_c_aDjOkT_cmd)_aDjOkT_path = $(ARD_HOME)/hardware/tools/$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd))
+     tools_aDjOkT_avrdude_aDjOkT_path = $(runtime_aDjOkT_tools_aDjOkT_$(compiler_aDjOkT_c_aDjOkT_cmd)_aDjOkT_path)
+#     runtime.tools.bossac.path = 
+#     runtime.tools.openocd.path
    endif
  else
    runtime_aDjOkT_tools_aDjOkT_$(compiler_aDjOkT_c_aDjOkT_cmd)_aDjOkT_path = $(ARD_SPEC)/../../../tools/$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd))
+   tools_aDjOkT_avrdude_aDjOkT_path = $(runtime_aDjOkT_tools_aDjOkT_$(compiler_aDjOkT_c_aDjOkT_cmd)_aDjOkT_path)
  endif
 endif
 
