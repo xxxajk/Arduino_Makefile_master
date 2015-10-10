@@ -16,6 +16,6 @@ Features:
 
 NEW:
   Libraries are now each an archive, seperately.
-  Seperate build oputput for each target
+  Seperate build output for each target
   Arduino recipie support for newer IDEs
 ```
