@@ -15,6 +15,7 @@ Features:
   Supports the Teensy development boards from pjrc.com
 
 NEW:
-  Faster compiles.
   Libraries are now each an archive, seperately.
+  Seperate build oputput for each target
+  Arduino recipie support for newer IDEs
 ```
