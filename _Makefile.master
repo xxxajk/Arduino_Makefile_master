@@ -274,8 +274,11 @@ ifdef THIRD_PARTY_HARDWARE
     TPH_BOARDS =$(THIRD_PARTY_HARDWARE)/boards.txt
 endif
 
-ALL_BOARDS_TXT =$(strip $(TPH_BOARDS) $(shell $(FIND) $(ARD_HOME)/hardware -name boards.txt -print) $(shell $(FIND) ~/.arduino15/packages -name boards.txt -print))
-
+ifneq ($(wildcard ~/.arduino15/packages),)
+    ALL_BOARDS_TXT =$(strip $(TPH_BOARDS) $(shell $(FIND) $(ARD_HOME)/hardware -name boards.txt -print) $(shell $(FIND) ~/.arduino15/packages -name boards.txt -print))
+else
+    ALL_BOARDS_TXT =$(strip $(TPH_BOARDS) $(shell $(FIND) $(ARD_HOME)/hardware -name boards.txt -print) $(shell $(FIND) -name boards.txt -print))
+endif
 # Find the correct boards.txt file 
 # The basename should be where the core files are
 # If this is blank, we can exit early.
