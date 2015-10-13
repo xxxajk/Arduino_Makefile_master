@@ -116,7 +116,6 @@ BASENAME ?=basename
 ECHO ?=echo
 
 
-
 DEBUG_Makefile ?=0
 
 ifeq ($(strip $(DEBUG_Makefile)),0)
@@ -158,6 +157,8 @@ $(info Known working shells are $(WORKING_SH))
 $(error BROKEN SHELL)
 endif
 endif
+
+DATESECONDS :=$(shell date -u +"%s")
 
 MON_SPEED ?=115200
 GCS ?=-Wl,--relax,--gc-sections
@@ -271,14 +272,22 @@ BUILD_DIR =$(BUILD_PATH)/$(BOARD)
 endif
 
 ifdef THIRD_PARTY_HARDWARE
-    TPH_BOARDS =$(THIRD_PARTY_HARDWARE)/boards.txt
+    TPH_BOARDS +=$(THIRD_PARTY_HARDWARE)/boards.txt
 endif
 
 ifneq ($(wildcard ~/.arduino15/packages),)
-    ALL_BOARDS_TXT =$(strip $(TPH_BOARDS) $(shell $(FIND) $(ARD_HOME)/hardware -name boards.txt -print) $(shell $(FIND) ~/.arduino15/packages -name boards.txt -print))
-else
-    ALL_BOARDS_TXT =$(strip $(TPH_BOARDS) $(shell $(FIND) $(ARD_HOME)/hardware -name boards.txt -print) $(shell $(FIND) -name boards.txt -print))
+    TPH_BOARDS += $(shell $(FIND) ~/.arduino15/packages -name boards.txt -print)
 endif
+
+ifneq ($(wildcard ~/Arduino/hardware),)
+    TPH_BOARDS += $(shell $(FIND) ~/Arduino/hardware -name boards.txt -print)
+endif
+
+
+ALL_BOARDS_TXT =$(strip $(shell $(FIND) $(ARD_HOME)/hardware -name boards.txt -print) $(TPH_BOARDS))
+
+$(info $(ALL_BOARDS_TXT))
+
 # Find the correct boards.txt file 
 # The basename should be where the core files are
 # If this is blank, we can exit early.
@@ -703,6 +712,12 @@ else
 
 
 $(info Using New Arduino discovery for tools.)
+
+# read in prefs, pulls out (at a minimum) sketchbook.path, 
+# other bits may be of use, or may not
+$(foreach line,$(shell $(SED) -e '/^\s*#/d;/.*=\s*$$/d;/.*\..*=.*/!d;s/\./_aDjOkT_/g;s/{/\$${/g;/^\s*$$/d;s/ /_aSjPkC_/g;s/$$/ /g;s/=/\=/' < ~/.arduino15/preferences.txt),$(eval $(subst _aSjPkC_, ,$(line))))
+SKETCHBOOKPATH=$(sketchbook_aDjOkT_path)
+
 #
 # Defs will be in platform.txt PLAT_SPEC
 #
@@ -710,9 +725,7 @@ $(info Using New Arduino discovery for tools.)
 #
 # TO-DO: list all available BOARD with optional BOARD_SUB
 #
-ifeq ($(strip $(VARIANT)),)
-    $(error BOARD "$(BOARD)", BOARD_SUB "$(BOARD_SUB)" not supported. Please check you are using the correct Arduino installation)
-endif
+
 
 $(info $(ARD_SPEC))
 PLAT_SPEC =$(ARD_SPEC)/platform.txt
@@ -725,15 +738,17 @@ serial_aDjOkT_port:=$(PORT)
 serial_aDjOkT_port_aDjOkT_file:=$(PORT)
 
 ifdef BOARD_SUB
-$(foreach line,$(shell $(SED) -e '/^\s*#/d;/.*=\s*$$/d;/.*\..*=.*/!d;/^$(BOARD)\..*/!d;s/[^.]*\.\(.*\)/\1/;/^vid\..*/d;/^pid\..*/d;s/^\([^m][^e][^n][^u]\)/$(BOARD_SUB)\.\1/;;s/^menu\.cpu\.//;/^$(BOARD_SUB)\..*/!d;s/[^.]*\.\(.*\)/\1/;s/\./_aDjOkT_/g;s/{/\$${/g;/^\s*$$/d;s/ /_aSjPkC_/g;s/$$/ /g' < $(ARD_BOARDS)),$(eval $(subst _aSjPkC_, ,$(line))))
+$(foreach line,$(shell $(SED) -e '/^\s*#/d;/.*=\s*$$/d;/.*\..*=.*/!d;/^$(BOARD)\..*/!d;s/[^.]*\.\(.*\)/\1/;/^vid\..*/d;/^pid\..*/d;s/^\([^m][^e][^n][^u]\)/$(BOARD_SUB)\.\1/;;s/^menu\.cpu\.//;/^$(BOARD_SUB)\..*/!d;s/[^.]*\.\(.*\)/\1/;s/\./_aDjOkT_/g;s/{/\$${/g;/^\s*$$/d;s/ /_aSjPkC_/g;s/$$/ /g' < $(ARD_BOARDS)),$(eval $(subst =, =,$(subst _aSjPkC_, ,$(line)))))
 else
-$(foreach line,$(shell $(SED) -e '/^\s*#/d;/.*=\s*$$/d;/.*\..*=.*/!d;/^$(BOARD)\..*/!d;s/[^.]*\.\(.*\)/\1/;/^vid\..*/d;/^pid\..*/d;s/\./_aDjOkT_/g;s/{/\$${/g;/^\s*$$/d;s/ /_aSjPkC_/g;s/$$/ /g' < $(ARD_BOARDS)),$(eval $(subst _aSjPkC_, ,$(line))))
+$(foreach line,$(shell $(SED) -e '/^\s*#/d;/.*=\s*$$/d;/.*\..*=.*/!d;/^$(BOARD)\..*/!d;s/[^.]*\.\(.*\)/\1/;/^vid\..*/d;/^pid\..*/d;s/\./_aDjOkT_/g;s/{/\$${/g;/^\s*$$/d;s/ /_aSjPkC_/g;s/$$/ /g' < $(ARD_BOARDS)),$(eval $(subst +=,+ =,$(subst _aSjPkC_, ,$(line)))))
 endif
+
+
+#$(foreach v, $(.VARIABLES), $(info $(v) = $($(v))))
 
 BUILD_BOARD :=$(subst _aDjOkT_,.,$(build_aDjOkT_board))
 MCU :=$(subst _aDjOkT_,.,$(build_aDjOkT_mcu))
 CPU :=$(subst _aDjOkT_,.,$(build_aDjOkT_cpu))
-F_CPU :=$(subst _aDjOkT_,.,$(build_aDjOkT_f_cpu))
 
 ifneq ($(strip $(USE_CPU)),)
     CPU=$(strip $(USE_CPU))
@@ -767,18 +782,19 @@ ifeq ($(strip $(MCU)),)
     $(error Board "$(BOARD)", variant "$(VARIANT)", BOARD_SUB "$(BOARD_SUB)", MCU not defined )
 endif
 
-$(foreach line,$(shell $(SED) -e '/^\s*#/d;/.*=\s*$$/d;/.*\..*=.*/!d;s/\./_aDjOkT_/g;s/{/\$${/g;/^\s*$$/d;s/ /_aSjPkC_/g;s/$$/ /g;s/=/\=/' < $(PLAT_SPEC)),$(eval $(subst _aSjPkC_, ,$(line))))
+$(foreach line,$(shell $(SED) -e '/^\s*#/d;/.*=\s*$$/d;/.*\..*=.*/!d;s/\./_aDjOkT_/g;s/{/\$${/g;/^\s*$$/d;s/ /_aSjPkC_/g;s/$$/ /g;s/=/\=/g' < $(PLAT_SPEC)),$(eval $(subst +=,+ =,$(subst _aSjPkC_, ,$(line)))))
+#$(foreach v, $(.VARIABLES), $(info $(v) = $($(v))))
 
-PROG_TOOL =$(subst _aDjOkT_,.,$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_cmd_aDjOkT_path))
-PROG_CONFIG =$(subst _aDjOkT_,.,$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_config_aDjOkT_path))
-PROGRAMMER =$(subst _aDjOkT_,.,$(upload_aDjOkT_protocol))
-UPLOAD_SPEED =$(subst _aDjOkT_,.,$(upload_aDjOkT_speed))
+PROG_TOOL =$(subst _aPjLkS_,+,$(subst _aDjOkT_,.,$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_cmd_aDjOkT_path)))
+PROG_CONFIG =$(subst _aPjLkS_,+,$(subst _aDjOkT_,.,$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_config_aDjOkT_path)))
+PROGRAMMER =$(subst _aPjLkS_,+,$(subst _aDjOkT_,.,$(upload_aDjOkT_protocol)))
+UPLOAD_SPEED =$(subst _aPjLkS_,+,$(subst _aDjOkT_,.,$(upload_aDjOkT_speed)))
 
 path=$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_path)
 cmd=$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_cmd)
 cmd_aDjOkT_path=$(PROG_TOOL)
 config_aDjOkT_path=$(PROG_CONFIG)
-UPLOAD=$(subst _aDjOkT_,.,$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_upload_aDjOkT_pattern))
+UPLOAD=$(subst _aPjLkS_,+,$(subst _aDjOkT_,.,$(tools_aDjOkT_$(upload_aDjOkT_tool)_aDjOkT_upload_aDjOkT_pattern)))
 
 
 ifeq ($(strip $(USB_VID)),)
@@ -803,6 +819,73 @@ ifeq ($(strip $(USB_PRODUCT)),)
 USB_PRODUCT =$(build_aDjOkT_usb_product)
 endif
 
+
+# Some third party boards (like from pjrc.com) lack a variants dir
+# They use something else and are more-or-less legacy, with tweaks
+# In order to just support pjrc, who has been very nice with hardware
+# and thier excellent support, I'll just assume a 'core' directory and
+# fill in the rest from build.core
+#    $(error BOARD "$(BOARD)", BOARD_SUB "$(BOARD_SUB)" not supported. Please check you are using the correct Arduino installation)
+ifeq ($(strip $(VARIANT)),)
+    $(info fixing VARIANT)
+    VARIANT=$(strip $(build_aDjOkT_core))
+    VARIANTS_DIR=cores
+
+    build_aDjOkT_variant=$(strip $(build_aDjOkT_core))
+    ifneq ($(strip $(USB_TYPE)),)
+        build_aDjOkT_usbtype=$(USB_TYPE)
+    endif
+
+    #build_aDjOkT_keylayout
+    ifneq ($(strip $(KEY_LAYOUT)),)
+        build_aDjOkT_keylayout=$(strip $(KEY_LAYOUT))
+    endif
+    #build_aDjOkT_fcpu
+    
+    ifneq ($(strip $(F_CPU)),)
+        build_aDjOkT_fcpu=$(strip $(F_CPU))
+    endif
+    #build_aDjOkT_flags_aDjOkT_optimize
+    ifneq ($(strip $(F_OPTIMIZE)),)
+        build_aDjOkT_optimize=$(strip $(F_OPTIMIZE))
+    endif
+
+    #defaults
+    build_aDjOkT_usbtype ?=USB_SERIAL
+    build_aDjOkT_keylayout ?=$(menu_aDjOkT_keys_aDjOkT_en-us_aDjOkT_build_aDjOkT_keylayout)
+
+    ifeq ($(build_aDjOkT_board),TEENSY31)
+        $(info TEENSY31)
+	build_aDjOkT_core_aDjOkT_path=$(ARD_SPEC)/$(VARIANTS_DIR)/$(build_aDjOkT_variant)
+        build_aDjOkT_fcpu ?=$(menu_aDjOkT_speed_aDjOkT_96_aDjOkT_build_aDjOkT_fcpu)
+        build_aDjOkT_flags_aDjOkT_optimize ?=$(menu_aDjOkT_speed_aDjOkT_96_aDjOkT_build_aDjOkT_flags_aDjOkT_optimize)
+    endif
+
+    ifeq ($(build_aDjOkT_board),TEENSY30)
+        $(info TEENSY30)
+	build_aDjOkT_core_aDjOkT_path=$(ARD_SPEC)/$(VARIANTS_DIR)/$(build_aDjOkT_variant)
+        build_aDjOkT_fcpu ?=$(menu_aDjOkT_speed_aDjOkT_96_aDjOkT_build_aDjOkT_fcpu)
+    endif
+
+
+    ifeq ($(build_aDjOkT_board),TEENSYLC)
+	build_aDjOkT_core_aDjOkT_path=$(ARD_SPEC)/$(VARIANTS_DIR)/$(build_aDjOkT_variant)
+        build_aDjOkT_fcpu ?=$(menu_aDjOkT_speed_aDjOkT_48_aDjOkT_build_aDjOkT_fcpu)
+        build_aDjOkT_flags_aDjOkT_optimize ?=$(menu_aDjOkT_speed_aDjOkT_48_aDjOkT_build_aDjOkT_flags_aDjOkT_optimize)
+    endif
+    build_aDjOkT_flags_aDjOkT_ldspecs += -L$(BUILD_DIR)/core_ $(ALL_LIB_LINKDIR)
+else
+    VARIANTS_DIR=variants
+endif
+ifeq ($(strip $(VARIANT)),)
+    $(error BOARD "$(BOARD)", BOARD_SUB "$(BOARD_SUB)" not supported. Please check you are using the correct Arduino installation)
+endif
+F_CPU ?=$(subst _aDjOkT_,.,$(build_aDjOkT_f_cpu))
+extra_aDjOkT_time_aDjOkT_local=$(DATESECONDS)
+
+$(info build_aDjOkT_variant $(build_aDjOkT_variant) )
+
+
 comma := ,
 source_file = $<
 object_file = $(@)
@@ -812,7 +895,8 @@ compiler_aDjOkT_cpp_aDjOkT_extra_flags += -x c++ -DUSING_MAKEFILE=1 $(EXTRA_FLAG
 object_files = $(SKT_PDE_OBJ) $(SKT_LINK_OBJS) -lAuser_ $(ALL_LIB_LINKED) 
 build_aDjOkT_path =$(BUILD_DIR)
 compiler_aDjOkT_c_aDjOkT_elf_aDjOkT_extra_flags += -Wl,--relax -L$(BUILD_DIR)/core_ $(ALL_LIB_LINKDIR)
-build_aDjOkT_variant_aDjOkT_path = $(ARD_SPEC)/variants/$(build_aDjOkT_variant)
+build_aDjOkT_variant_aDjOkT_path = $(ARD_SPEC)/$(VARIANTS_DIR)/$(build_aDjOkT_variant)
+
 build_aDjOkT_system_aDjOkT_path=$(ARD_SPEC)/system
 build_aDjOkT_project_name =$(SKETCH)
 INTERNAL_LIB_DIRS += $(shell $(FIND) $(build_aDjOkT_variant_aDjOkT_path) -type d -print)
@@ -822,15 +906,25 @@ GO_CPP_O =$(recipe_aDjOkT_cpp_aDjOkT_o_aDjOkT_pattern)
 GO_LINK =$(recipe_aDjOkT_c_aDjOkT_combine_aDjOkT_pattern)
 archive_file = core_/libarduino_core.a
 
-
 build_aDjOkT_arch =$(strip $(shell echo $(BUILD_ARCH) | $(TR) a-z A-Z))
 runtime_aDjOkT_ide_aDjOkT_version =$(ARD_REV)
 USE_1200BPS_TOUCH = $(upload_aDjOkT_use_1200bps_touch)
+
 
 #
 # Problem, path may be missing.
 # runtime.tools.avr-gcc.path
 #
+#$(info $(compiler_aDjOkT_path))
+#$(info $(compiler_aDjOkT_c_aDjOkT_cmd))
+
+$(info $(ARD_SPEC)/../../../tools/ *$(compiler_aDjOkT_path)$(compiler_aDjOkT_c_aDjOkT_cmd))
+$(info is here)
+$(info "$(shell $(FIND) $(ARD_SPEC)/../../../tools -name *$(compiler_aDjOkT_path)$(compiler_aDjOkT_c_aDjOkT_cmd) -print)")
+$(info here)
+
+#$(foreach v, $(.VARIABLES), $(info $(v) = $($(v))))
+
 
 ifeq ($(strip $(compiler_aDjOkT_path)),/bin/)
   #
@@ -840,6 +934,8 @@ ifeq ($(strip $(compiler_aDjOkT_path)),/bin/)
 
  ifeq ($(wildcard $(ARD_SPEC)/../../../tools/$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd))$(compiler_aDjOkT_path)),)
    ifeq ($(wildcard $(ARD_HOME)/hardware/tools/$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd))$(compiler_aDjOkT_path)),)
+# can be deeper than this. eg ../../../tools/arm-none-eabi-gcc/4.8.3-2014q1/
+# stupidly these seem to be buried in the runtime?
      $(error Can not locate tools)
    else
      runtime_aDjOkT_tools_aDjOkT_$(compiler_aDjOkT_c_aDjOkT_cmd)_aDjOkT_path = $(ARD_HOME)/hardware/tools/$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd))
@@ -852,9 +948,11 @@ ifeq ($(strip $(compiler_aDjOkT_path)),/bin/)
    tools_aDjOkT_avrdude_aDjOkT_path = $(runtime_aDjOkT_tools_aDjOkT_$(compiler_aDjOkT_c_aDjOkT_cmd)_aDjOkT_path)
  endif
 endif
-
-TOOLCHEST = $(subst _aDjOkT_,.,$(compiler_aDjOkT_path)$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd)))
-
+ifeq ($(strip $(build_aDjOkT_toolchain)),)
+    TOOLCHEST = $(subst _aDjOkT_,.,$(compiler_aDjOkT_path)$(subst -gcc,,$(compiler_aDjOkT_c_aDjOkT_cmd)))
+else
+    TOOLCHEST = $(subst _aDjOkT_,.,$(compiler_aDjOkT_path)$(build_aDjOkT_toolchain)$(subst -gcc,,$(build_aDjOkT_command_aDjOkT_gcc)))
+endif
 $(info toolchest $(TOOLCHEST))
 
 
@@ -867,7 +965,7 @@ AR = $(TOOLCHEST)-ar
 SIZE = $(TOOLCHEST)-size
 NM = $(TOOLCHEST)-nm
 LD = $(TOOLCHEST)-ld
-
+$(info CXX $(CXX))
 ARD_SRC_DIR = $(ARD_SPEC)/cores/$(BUILD_CORE)
 
 
@@ -881,23 +979,23 @@ define run-link
 endef
 
 define run-ccc
-    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$*.lst,$(GO_C_O)))
+    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-x c -Wa$(comma)-adhlns=$*.lst,$(GO_C_O)))
 endef
 
 define run-ccxx
-    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$*.lst,$(GO_CPP_O)))
+    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-x c++ -Wa$(comma)-adhlns=$*.lst,$(GO_CPP_O)))
 endef
 
 define run-ccxxino
-    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_CPP_O)))
+    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-x c++ -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_CPP_O)))
 endef
 
 define run-cxxskt
-    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_CPP_O)))
+    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-x c++ -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_CPP_O)))
 endef
 
 define run-cccskt
-    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_C_O)))
+    $(MAKE_QUIET_BUILD)$(subst _aDjOkT_,.,$(subst _aEjXkT_,-x c -std=gnu99 -Wstrict-prototypes -Wno-old-style-declaration -Wa$(comma)-adhlns=$(@D)/$*.lst,$(GO_C_O)))
 endef
 
 ifeq "$(USE_1200BPS_TOUCH)" "true"
@@ -942,7 +1040,7 @@ ifdef THIRD_PARTY_HARDWARE
         PPRILIB_DIRS = $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g;s/.*<//g' ` ; do $(FIND) $(THIRD_PARTY_HARDWARE)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
 endif
 
-PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g;s/.*<//g' ` ; do $(FIND) -L ../libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ; done  2>/dev/null | $(UNIQ) )
+PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null | $(SED) 's/>.*$$//g;s/.*<//g' ` ; do $(FIND) -L $(SKETCHBOOKPATH)/libraries -maxdepth 2 -name $$i -exec $(DIRNAME) \{\} \; ; done  2>/dev/null | $(UNIQ) )
 PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g;s/.*<//g' ` ; do $(FIND) -L $(ARD_SPEC)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
 PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g;s/.*<//g' ` ; do $(FIND) -L $(ARD_HOME)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
 PPRILIB_DIRS += $(shell for i in `$(FIND) . \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.ino' \) -exec $(GREP) '\#include.*<.*>' \{\} \; 2>/dev/null| $(SED) 's/\.h.*>.*$$//g;s/.*<//g' ` ; do $(FIND) -L $(ARD_HOME)/hardware/arduino/$(BUILD_ARCH)/libraries/$$i -maxdepth 2 -name $$i.h -exec $(DIRNAME) \{\} \; ; done 2>/dev/null | $(UNIQ) )
