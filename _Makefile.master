@@ -562,6 +562,7 @@ endif
 
 all: alldirs $(IMAGE).hex
 
+build: all
 
 ifeq "$(BUILD_ARCH)" "arm-none-eabi"
 #
@@ -1306,7 +1307,7 @@ PRIMARY_A = $(BUILD_DIR)/core_/libAcore_.a $(BUILD_DIR)/libAuser_.a
 alldirs: $(EVERY_DIR)
 
 
-.PHONY: all squeeky clean upload monitor upload_monitor upmonitor alldirs allobjects archives
+.PHONY: all build squeeky clean upload monitor upload_monitor upmonitor alldirs allobjects archives
 #
 # All archives will attempt update if any object changes anywhere.
 # ar actually manages anything that is really changed.
