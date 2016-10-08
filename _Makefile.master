@@ -237,9 +237,16 @@ ifeq "$(PLATFORM)" "SunOS"
         endef
     endif
 else ifeq "$(PLATFORM)" "Linux"
-    define monitor-target
-        screen $(CPORT) $(MON_SPEED)
-    endef
+    ifeq ($(MON_SPEED),$(filter $(MON_SPEED), 230400 500000 1000000)) 
+
+        define monitor-target
+            cu -l $(CPORT) -s $(MON_SPEED)
+        endef
+    else
+        define monitor-target
+            screen $(CPORT) $(MON_SPEED)
+        endef
+    endif
     ifeq "$(CPORT)" "$(PORT)"
         define kill-monitor
             - pkill -f 'screen.*$(CPORT)'
@@ -281,6 +288,8 @@ endif
 
 ifneq ($(wildcard ~/Arduino/hardware),)
     TPH_BOARDS += $(shell $(FIND) ~/Arduino/hardware -name boards.txt -print)
+else
+    $(shell $(MKDIR) ~/Arduino/hardware)
 endif
 
 
