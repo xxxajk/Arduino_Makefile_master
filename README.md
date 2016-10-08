@@ -1,7 +1,7 @@
 Arduino_Makefile_master
 =======================
 
-Use make on macos Darwin or linux instead of arduino IDE.
+Obsolete. Use https://github.com/xxxajk/Arduino_Make instead.
 
 ```
 NOTE:
