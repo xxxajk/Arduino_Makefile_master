@@ -132,11 +132,11 @@ endif
 $(info Gathering build parameters...)
 #
 # Working shell list:
-WORKING_SH =/bin/ash /bin/bash /bin/ksh /bin/dash
+WORKING_SH =/bin/ash /bin/bash /bin/ksh /bin/dash /usr/bin/ash /usr/bin/bash /usr/bin/ksh /usr/bin/dash
 
 #
 # Not working, and may never work
-BROKEN_SH =/bin/zsh /bin/csh /bin/tcsh /bin/rksh
+BROKEN_SH =/bin/zsh /bin/csh /bin/tcsh /bin/rksh /usr/bin/zsh /usr/bin/csh /usr/bin/tcsh /usr/bin/rksh
 
 REAL_SH=$(strip $(shell $(READLINK) -f $(SHELL)))
 ifneq ($(strip $(findstring $(SHELL),$(BROKEN_SH))),)
